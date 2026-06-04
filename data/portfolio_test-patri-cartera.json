@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1",
+    "nombre": "Piso Test Talavera",
+    "precio": 85000,
+    "zona": "Talavera"
+  },
+  {
+    "id": "2",
+    "nombre": "Piso Test Segovia",
+    "precio": 150000,
+    "zona": "Segovia"
+  }
+]
