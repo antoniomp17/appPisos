@@ -1,0 +1,35 @@
+
+    var paths = [
+        '/react/projects/detail/dist/active/detail.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/3309.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/4965.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/1579.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/7793.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/7512.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/8364.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/9953.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/8790.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/2777.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/9735.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/7774.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/2836.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/9012.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/7773.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/8527.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/3810.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/1472.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/6864.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/9465.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/9611.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/1998.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/3320.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/337.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/805.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/5883.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/1149.ae399c04e1ea40ef946e.js','/react/projects/detail/dist/active/3088.ae399c04e1ea40ef946e.js'
+    ];
+
+    var baseURI = ('config' in window) ? window.config.staticsBaseUri : '';
+    var createScriptNodeByPath = function (path) {
+        var node = document.createElement('script');
+        node.src = path;
+        return node;
+    };
+
+    var createLinkNodeFromFile = function (file) {
+        var node = document.createElement('link');
+        node.rel = 'stylesheet';
+        node.type = 'text/css';
+        node.media = 'all';
+        node.href = file;
+        return node;
+    };
+
+    loadCssFile = function (file) {
+        var linkNode = createLinkNodeFromFile(file);
+        document.head.appendChild(linkNode);
+    };
+
+    paths.forEach(function (path) {
+        var scriptPath = baseURI + path;
+        document.body.appendChild(createScriptNodeByPath(scriptPath));
+    });
+
+    var cssFile = 'detail.ae399c04e1ea40ef946e.css';
+    if(cssFile) {
+        loadCssFile(baseURI + '/react/projects/detail/dist/active/detail.ae399c04e1ea40ef946e.css');
+    }
