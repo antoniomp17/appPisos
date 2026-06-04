@@ -1,8 +1,0 @@
-if (document.documentElement.lang) {
-    window.didomiConfig = {
-        languages: {
-            default: document.documentElement.lang,
-            enabled: [document.documentElement.lang]
-        }
-    };
-}
