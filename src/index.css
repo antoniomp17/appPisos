@@ -48,3 +48,29 @@ button, input, select, textarea, a, tr {
   transition-duration: 200ms;
 }
 
+/* Luces de ambiente animadas flotantes */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(40px, -40px) scale(1.15);
+  }
+}
+
+@keyframes floatSlowReverse {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1.1);
+  }
+  50% {
+    transform: translate(-30px, 30px) scale(0.9);
+  }
+}
+
+.animate-pulse-slow {
+  animation: floatSlow 20s infinite ease-in-out;
+}
+
+.animate-pulse-slow-reverse {
+  animation: floatSlowReverse 25s infinite ease-in-out;
+}

@@ -863,12 +863,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-300">
       {/* Luces de ambiente (Decorative Blur Glows) */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/5 blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[150px] pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute top-[30%] right-[-10%] w-[700px] h-[700px] rounded-full bg-blue-500/8 blur-[160px] pointer-events-none animate-pulse-slow-reverse"></div>
+      <div className="absolute bottom-[-10%] left-[10%] w-[500px] h-[500px] rounded-full bg-purple-500/8 blur-[140px] pointer-events-none"></div>
 
       {/* HEADER */}
-      <header className="bg-slate-900/60 backdrop-blur-md border-b border-slate-850 sticky top-0 z-20 shadow-[0_4px_30px_rgba(0,0,0,0.3)]">
-        <div className="max-w-[1600px] mx-auto px-4 py-3.5 sm:px-6 lg:px-8 flex justify-between items-center">
+      <header className="sticky top-4 z-20 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/85 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.45)] flex justify-between items-center px-6 py-4">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-glow-emerald">
               <Building className="h-5.5 w-5.5 text-emerald-400" />
@@ -884,7 +885,7 @@ export default function App() {
                 setSyncMessage(null);
                 setShowSyncModal(true);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.8 border text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 h-10 px-4 border text-xs font-bold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                 syncCode 
                   ? 'border-blue-500/30 bg-blue-950/40 text-blue-400 hover:bg-blue-950/60 hover:border-blue-500/50 shadow-glow-blue' 
                   : 'border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-slate-350 hover:text-white'
@@ -899,7 +900,7 @@ export default function App() {
                 setProvinceSearch('');
                 setShowZonesModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.8 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer"
+              className="flex items-center gap-1.5 h-10 px-4 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer"
               title="Configurar parámetros de las Zonas y Provincias"
             >
               <Settings className="h-3.5 w-3.5 text-slate-400" />
@@ -907,13 +908,13 @@ export default function App() {
             </button>
             <button
               onClick={handleResetDemo}
-              className="flex items-center gap-1.5 px-3 py-1.8 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer"
+              className="flex items-center gap-1.5 h-10 px-4 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer"
               title="Restablecer datos de ejemplo"
             >
               <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
               <span className="hidden sm:inline">Demo</span>
             </button>
-            <label className="flex items-center gap-1.5 px-3 py-1.8 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer">
+            <label className="flex items-center gap-1.5 h-10 px-4 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-bold text-slate-300 hover:text-white rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer">
               <Upload className="h-3.5 w-3.5 text-slate-400" />
               <span className="hidden sm:inline">Importar</span>
               <input
@@ -925,7 +926,7 @@ export default function App() {
             </label>
             <button
               onClick={handleExportJSON}
-              className="flex items-center gap-1.5 px-3.5 py-1.8 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-bold text-white rounded-lg shadow-md hover:shadow-emerald-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              className="flex items-center gap-1.5 h-10 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-extrabold text-white rounded-xl shadow-md hover:shadow-emerald-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Exportar</span>
@@ -975,14 +976,14 @@ export default function App() {
                             value={idealistaUrl}
                             onChange={(e) => setIdealistaUrl(e.target.value)}
                             placeholder="Pega aquí enlace de Idealista..."
-                            className="w-full rounded-lg border-slate-850 focus:border-emerald-500 focus:ring-emerald-500/20 text-sm px-3 py-1.8 border bg-slate-950 text-slate-100 placeholder:text-slate-600 focus:outline-none"
+                            className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-655 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                           />
                         </div>
                         <button
                           type="button"
                           onClick={handleScrapeUrl}
                           disabled={isScraping || idealistaUrl.length === 0}
-                          className="flex-none flex justify-center items-center px-3.5 py-2 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                          className="flex-none flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 cursor-pointer"
                           title="Autocompletar datos"
                         >
                           {isScraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link className="h-4 w-4" />}
@@ -1040,14 +1041,14 @@ export default function App() {
 
                 {/* Inputs Básicos */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Nombre / Referencia</label>
-                  <input required type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 placeholder-slate-650 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all" placeholder="Ej: Piso Centro..." />
+                  <label className="block text-xs font-bold text-slate-455 mb-1.5 tracking-wide">Nombre / Referencia</label>
+                  <input required type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 placeholder-slate-600 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" placeholder="Ej: Piso Centro..." />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">Zona</label>
-                    <select name="zona" value={formData.zona} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all">
+                    <label className="block text-xs font-bold text-slate-455 mb-1.5 tracking-wide">Zona</label>
+                    <select name="zona" value={formData.zona} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer">
                       {customZones.length > 0 && (
                         <optgroup label="Zonas Personalizadas" className="bg-slate-950 text-slate-300">
                           {customZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
@@ -1061,8 +1062,8 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">Planta</label>
-                    <select name="planta" value={formData.planta} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all">
+                    <label className="block text-xs font-bold text-slate-455 mb-1.5 tracking-wide">Planta</label>
+                    <select name="planta" value={formData.planta} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer">
                       {PLANTAS.map(p => <option key={p.id} value={p.id} className="bg-slate-950">{p.label}</option>)}
                     </select>
                   </div>
@@ -1070,12 +1071,12 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">Superficie (m²)</label>
-                    <input required type="number" name="m2" value={formData.m2} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all" />
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5 tracking-wide">Superficie (m²)</label>
+                    <input required type="number" name="m2" value={formData.m2} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">Precio Compra (€)</label>
-                    <input required type="number" name="precio" value={formData.precio} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all" />
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5 tracking-wide">Precio Compra (€)</label>
+                    <input required type="number" name="precio" value={formData.precio} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     {formData.m2 > 0 && zonesConfig[formData.zona] && (() => {
                       const priceM2 = Math.round(formData.precio / formData.m2);
                       const avg = zonesConfig[formData.zona].avgPriceM2;
@@ -1092,35 +1093,35 @@ export default function App() {
 
                 {/* Gastos Adquisición */}
                 <div className="bg-slate-950/45 p-3.5 rounded-xl border border-slate-850/80 space-y-3">
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Adquisición</h3>
+                  <h3 className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Adquisición</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">ITP (%)</label>
-                      <input required type="number" step="0.1" name="itp" value={formData.itp} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      <input required type="number" step="0.1" name="itp" value={formData.itp} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">Reforma (€)</label>
-                      <input required type="number" name="reforma" value={formData.reforma} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      <input required type="number" name="reforma" value={formData.reforma} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                   </div>
                 </div>
 
                 {/* Ingresos y Gastos Corrientes */}
                 <div className="bg-slate-950/45 p-3.5 rounded-xl border border-slate-850/80 space-y-3">
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operativa</h3>
+                  <h3 className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Operativa</h3>
                   <div className="grid grid-cols-2 gap-3.5">
                     <div className="col-span-2">
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">Alquiler Mes (€)</label>
-                      <input required type="number" name="alquiler" value={formData.alquiler} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      <input required type="number" name="alquiler" value={formData.alquiler} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                       {formData.m2 > 0 && zonesConfig[formData.zona] && (() => {
                         const suggested = Math.round(formData.m2 * zonesConfig[formData.zona].avgRentPriceM2);
                         return (
-                          <div className="text-[10px] text-blue-400 mt-1.5 flex justify-between items-center font-medium leading-none">
+                          <div className="text-[10px] text-blue-450 mt-1.5 flex justify-between items-center font-medium leading-none">
                             <span>💡 Sugerido: ~{suggested} €</span>
                             <button
                               type="button"
                               onClick={() => setFormData(prev => ({ ...prev, alquiler: suggested }))}
-                              className="text-[9px] bg-blue-950/40 text-blue-450 px-1.5 py-0.5 rounded hover:bg-blue-900/40 border border-blue-900/50 transition-all font-bold uppercase cursor-pointer"
+                              className="text-[9px] bg-blue-950/40 text-blue-400 px-2 py-1 rounded hover:bg-blue-900/40 border border-blue-900/50 transition-all font-bold uppercase cursor-pointer"
                             >
                               Aplicar
                             </button>
@@ -1130,15 +1131,15 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">Comunidad/mes</label>
-                      <input required type="number" name="comunidad" value={formData.comunidad} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      <input required type="number" name="comunidad" value={formData.comunidad} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">IBI Anual (€)</label>
-                      <input required type="number" name="ibi" value={formData.ibi} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      <input required type="number" name="ibi" value={formData.ibi} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">Seguro Anual (€)</label>
-                      <input required type="number" name="seguro" value={formData.seguro} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      <input required type="number" name="seguro" value={formData.seguro} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                   </div>
                 </div>
@@ -1146,17 +1147,17 @@ export default function App() {
                 {/* Financiación (Si no hay global) */}
                 <div className={`p-3.5 rounded-xl border transition-all duration-200 ${globalMortgage.active ? 'bg-slate-950/20 border-slate-900 opacity-40' : 'bg-slate-950/45 border-slate-850/80'} space-y-3`}>
                   <div className="flex justify-between items-center">
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hipoteca (80%)</h3>
+                    <h3 className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Hipoteca (80%)</h3>
                     {globalMortgage.active && <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Global Activa</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">TIN (%)</label>
-                      <input disabled={globalMortgage.active} required type="number" step="0.1" name="tin" value={formData.tin} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all disabled:opacity-40" />
+                      <input disabled={globalMortgage.active} required type="number" step="0.1" name="tin" value={formData.tin} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">Plazo (Años)</label>
-                      <select disabled={globalMortgage.active} name="plazo" value={formData.plazo} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all disabled:opacity-40 bg-slate-950">
+                      <select disabled={globalMortgage.active} name="plazo" value={formData.plazo} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-slate-950 cursor-pointer">
                         <option value={15} className="bg-slate-950">15 años</option>
                         <option value={20} className="bg-slate-950">20 años</option>
                         <option value={25} className="bg-slate-950">25 años</option>
@@ -1168,7 +1169,7 @@ export default function App() {
 
                 {/* Validaciones Visuales */}
                 {formWarnings.length > 0 && (
-                  <div className="bg-amber-500/5 border-l-3 border-amber-500 p-3.5 rounded-r-xl">
+                  <div className="bg-amber-500/5 border-l-4 border-amber-500 p-3.5 rounded-r-xl">
                     <div className="flex items-start">
                       <AlertTriangle className="h-4 w-4 text-amber-450 mr-2 mt-0.5 shrink-0" />
                       <ul className="text-xs text-amber-300 space-y-1">
@@ -1179,7 +1180,7 @@ export default function App() {
                 )}
 
                 {formErrors.length > 0 && (
-                  <div className="bg-red-500/5 border-l-3 border-red-500 p-3.5 rounded-r-xl">
+                  <div className="bg-red-500/5 border-l-4 border-red-500 p-3.5 rounded-r-xl">
                     <div className="flex items-start">
                       <AlertTriangle className="h-4 w-4 text-red-400 mr-2 mt-0.5 shrink-0" />
                       <ul className="text-xs text-red-350 font-semibold space-y-1">
@@ -1194,14 +1195,14 @@ export default function App() {
                     <button 
                       type="button" 
                       onClick={handleCancelEdit}
-                      className="flex justify-center items-center py-2.2 px-3 border border-slate-800 bg-slate-900 text-slate-350 hover:bg-slate-850 hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                      className="flex justify-center items-center h-11 px-4 border border-slate-800 bg-slate-900 text-slate-350 hover:bg-slate-850 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                     >
                       Cancelar
                     </button>
                     <button 
                       type="submit" 
                       disabled={formErrors.length > 0}
-                      className="flex justify-center items-center py-2.2 px-3 border border-transparent rounded-lg shadow-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all cursor-pointer disabled:opacity-50"
+                      className="flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Guardar
                     </button>
@@ -1210,7 +1211,7 @@ export default function App() {
                   <button 
                     type="submit" 
                     disabled={formErrors.length > 0}
-                    className="w-full mt-4 flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-indigo-500/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                    className="w-full mt-4 flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-indigo-500/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Plus className="h-4 w-4 mr-2" /> Añadir Inmueble
                   </button>
@@ -1234,13 +1235,13 @@ export default function App() {
                     <p className="text-xs text-slate-450 mt-0.5">Aplica un TIN y Plazo a toda la cartera para ver el impacto en el Cash Flow</p>
                   </div>
                 </div>
-                <label className="flex items-center cursor-pointer">
+                <label className="flex items-center cursor-pointer select-none">
                   <div className="relative">
                     <input type="checkbox" className="sr-only" checked={globalMortgage.active} onChange={() => setGlobalMortgage(p => ({...p, active: !p.active}))} />
-                    <div className={`block w-10 h-5.5 rounded-full transition-colors ${globalMortgage.active ? 'bg-amber-500 shadow-glow-amber' : 'bg-slate-800'}`}></div>
-                    <div className={`dot absolute left-0.8 top-0.8 bg-white w-4 h-4 rounded-full transition-transform ${globalMortgage.active ? 'transform translate-x-4.5' : ''}`}></div>
+                    <div className={`w-[56px] h-[30px] rounded-full transition-all duration-300 border bg-slate-950 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] ${globalMortgage.active ? 'bg-amber-500/25 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.35)]' : 'border-slate-800'}`}></div>
+                    <div className={`absolute top-[3px] left-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 ${globalMortgage.active ? 'translate-x-[26px] bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-slate-400'}`}></div>
                   </div>
-                  <span className="ml-3 text-xs font-bold uppercase tracking-wider text-slate-350">{globalMortgage.active ? 'Activo' : 'Inactivo'}</span>
+                  <span className={`ml-3.5 text-xs font-extrabold uppercase tracking-wider transition-colors duration-200 ${globalMortgage.active ? 'text-amber-400' : 'text-slate-450'}`}>{globalMortgage.active ? 'ON' : 'OFF'}</span>
                 </label>
               </div>
 
@@ -1323,6 +1324,9 @@ export default function App() {
                         const m = prop.metrics;
                         const score = getPropertyScore(prop, m, zonesConfig);
                         const isExpanded = expandedPropertyId === prop.id;
+                        const baseRent = zonesConfig[prop.zona] ? (zonesConfig[prop.zona].avgRentPriceM2 * prop.m2) : 600;
+                        const minRent = Math.max(100, Math.round(baseRent * 0.4));
+                        const maxRent = Math.round(baseRent * 2.2);
                         
                         // Determinación de colores del Cash Flow
                         let cfColor = "text-red-400 font-bold bg-red-500/10 border border-red-500/20";
@@ -1332,18 +1336,18 @@ export default function App() {
                         return (
                           <React.Fragment key={prop.id}>
                             <tr 
-                              className={`hover:bg-slate-850/50 border-b border-slate-850/60 transition-all cursor-pointer ${isExpanded ? 'bg-slate-850/35 border-l-3 border-emerald-500 font-medium' : ''}`}
+                              className={`hover:bg-slate-850/50 border-b border-slate-850/60 transition-all cursor-pointer ${isExpanded ? 'bg-slate-850/35 border-l-4 border-emerald-500 font-medium' : ''}`}
                               onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
                             >
                               <td className="px-4 py-3.5">
                                 <div className="flex items-center gap-2">
                                   <div className="text-sm font-bold text-slate-100">{prop.nombre}</div>
-                                  <span className={`inline-block px-1.8 py-0.2 text-[9px] font-extrabold rounded border ${score.color}`} title={`Calidad: ${score.label} (${score.points} pts)`}>
+                                  <span className={`inline-block px-2 py-0.5 text-[9px] font-extrabold rounded border ${score.color}`} title={`Calidad: ${score.label} (${score.points} pts)`}>
                                     {score.grade}
                                   </span>
                                 </div>
-                                <div className="text-xs text-slate-450 flex items-center gap-1.5 mt-1 font-medium">
-                                  <MapPin className="h-3 w-3 text-slate-550" /> {zonesConfig[prop.zona]?.name || prop.zona} • {prop.planta}
+                                <div className="text-xs text-slate-455 flex items-center gap-1.5 mt-1 font-medium">
+                                  <MapPin className="h-3 w-3 text-slate-500" /> {zonesConfig[prop.zona]?.name || prop.zona} • {prop.planta}
                                 </div>
                               </td>
                               <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
@@ -1368,14 +1372,14 @@ export default function App() {
                                 {formatCurrency(m.cuotaMensual)}
                                 <div className="text-[10px] text-slate-500 font-medium mt-0.5">
                                   {globalMortgage.active ? (
-                                    <span className="text-amber-450 font-semibold">Sim. {globalMortgage.tin}%</span>
+                                    <span className="text-amber-455 font-semibold">Sim. {globalMortgage.tin}%</span>
                                   ) : (
                                     <span>{prop.tin}% / {prop.plazo}y</span>
                                   )}
                                 </div>
                               </td>
                               <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.8 rounded-md text-xs font-bold ${cfColor}`}>
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${cfColor}`}>
                                   {formatCurrency(m.cashFlowMensual)}
                                 </span>
                               </td>
@@ -1383,7 +1387,7 @@ export default function App() {
                                 {formatPercent(m.rentabilidadBruta)}
                               </td>
                               <td className="px-4 py-3.5 text-right text-sm whitespace-nowrap">
-                                <span className="font-bold text-emerald-450 bg-emerald-500/10 px-2.2 py-0.8 rounded border border-emerald-500/20 shadow-glow-emerald">
+                                <span className="font-bold text-emerald-450 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20 shadow-glow-emerald">
                                   {formatPercent(m.rentabilidadNeta)}
                                 </span>
                               </td>
@@ -1449,15 +1453,23 @@ export default function App() {
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/80 rounded-xl border border-slate-850 p-4 shadow-md">
                                         
                                         {/* Slider 1: Alquiler */}
-                                        <div className="space-y-2">
-                                          <div className="flex justify-between text-xs font-semibold">
+                                        <div className="space-y-2.5">
+                                          <div className="flex justify-between items-center text-xs font-semibold">
                                             <span className="text-slate-400">Alquiler Estimado:</span>
-                                            <span className="font-bold text-blue-400">{formatCurrency(prop.alquiler)}/mes</span>
+                                            <div className="flex items-center gap-1.5">
+                                              <input
+                                                type="number"
+                                                value={prop.alquiler}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))}
+                                                className="w-20 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold"
+                                              />
+                                              <span className="text-slate-455">/mes</span>
+                                            </div>
                                           </div>
                                           <input 
                                             type="range" 
-                                            min={Math.round(prop.alquiler * 0.5) || 200} 
-                                            max={Math.round(prop.alquiler * 1.5) || 1500} 
+                                            min={minRent} 
+                                            max={maxRent} 
                                             step={10} 
                                             value={prop.alquiler} 
                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))} 
@@ -1465,22 +1477,28 @@ export default function App() {
                                           />
                                           {zonesConfig[prop.zona] && (
                                             <div className="text-[9px] text-slate-500 flex justify-between font-medium">
-                                              <span>Mín: {formatCurrency(Math.round(prop.alquiler * 0.5))}</span>
-                                              <span>Media: ~{Math.round(prop.m2 * zonesConfig[prop.zona].avgRentPriceM2)} €</span>
-                                              <span>Máx: {formatCurrency(Math.round(prop.alquiler * 1.5))}</span>
+                                              <span>Mín: {formatCurrency(minRent)}</span>
+                                              <span>Media: ~{Math.round(baseRent)} €</span>
+                                              <span>Máx: {formatCurrency(maxRent)}</span>
                                             </div>
                                           )}
                                         </div>
  
                                         {/* Slider 2: TIN */}
-                                        <div className="space-y-2">
-                                          <div className="flex justify-between text-xs font-semibold">
+                                        <div className="space-y-2.5">
+                                          <div className="flex justify-between items-center text-xs font-semibold">
                                             <span className="text-slate-400">Interés Hipoteca (TIN):</span>
-                                            {globalMortgage.active ? (
-                                              <span className="font-bold text-amber-400">Fijado Global ({globalMortgage.tin}%)</span>
-                                            ) : (
-                                              <span className="font-bold text-blue-400">{prop.tin}%</span>
-                                            )}
+                                            <div className="flex items-center gap-1.5">
+                                              <input
+                                                type="number"
+                                                step="0.1"
+                                                disabled={globalMortgage.active}
+                                                value={globalMortgage.active ? globalMortgage.tin : prop.tin}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'tin', Number(e.target.value))}
+                                                className="w-16 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold disabled:opacity-40"
+                                              />
+                                              <span className="text-slate-455">%</span>
+                                            </div>
                                           </div>
                                           <input 
                                             type="range" 
@@ -1540,7 +1558,7 @@ export default function App() {
 
             {/* Resumen Global Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-5 flex items-center shadow-lg">
                   <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-glow-blue mr-4 shrink-0">
                     <Building className="h-5.5 w-5.5" />
                   </div>
@@ -1549,18 +1567,18 @@ export default function App() {
                     <p className="text-xl font-extrabold text-slate-100 mt-1">{properties.length}</p>
                   </div>
                </div>
-               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-5 flex items-center shadow-lg">
                   <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-glow-emerald mr-4 shrink-0">
                     <Euro className="h-5.5 w-5.5" />
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Cap. Total Aportado</p>
                     <p className="text-xl font-extrabold text-slate-100 mt-1">
-                      {formatCurrency(enrichedProperties.reduce((acc, curr) => acc + curr.metrics.capitalAportadoTotal, 0))}
+                       {formatCurrency(enrichedProperties.reduce((acc, curr) => acc + curr.metrics.capitalAportadoTotal, 0))}
                     </p>
                   </div>
                </div>
-               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-5 flex items-center shadow-lg">
                   <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-glow-amber mr-4 shrink-0">
                     <Calculator className="h-5.5 w-5.5" />
                   </div>
@@ -1571,7 +1589,7 @@ export default function App() {
                     </p>
                   </div>
                </div>
-               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-5 flex items-center shadow-lg">
                   <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-glow-purple mr-4 shrink-0">
                     <TrendingUp className="h-5.5 w-5.5" />
                   </div>
@@ -1679,12 +1697,12 @@ export default function App() {
                       value={inputSyncCode}
                       onChange={(e) => setInputSyncCode(e.target.value)}
                       placeholder="Ej. mi-cartera-secreta"
-                      className="flex-1 px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder-slate-650"
+                      className="flex-1 h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 placeholder-slate-650 disabled:opacity-40 transition-all"
                       disabled={isSyncing}
                     />
                     <button
                       onClick={generateRandomCode}
-                      className="px-2.5 py-1.8 border border-slate-850 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold transition-all cursor-pointer border hover:text-white"
+                      className="h-11 px-4 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer hover:text-white hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40"
                       disabled={isSyncing}
                     >
                       Generar
@@ -1702,7 +1720,7 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-2 pt-1.5">
                   <button
                     onClick={() => handleLoadCloud(inputSyncCode)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-850 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 h-11 px-4 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
                     disabled={isSyncing || !inputSyncCode.trim()}
                   >
                     {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-500" />}
@@ -1711,10 +1729,10 @@ export default function App() {
                   
                   <button
                     onClick={() => handleSaveCloud(inputSyncCode)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 h-11 px-4 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
                     disabled={isSyncing || !inputSyncCode.trim()}
                   >
-                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <Cloud className="h-3.5 w-3.5 text-slate-400" />}
+                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <Cloud className="h-3.5 w-3.5 text-slate-450" />}
                     Guardar
                   </button>
                 </div>
@@ -1770,7 +1788,7 @@ export default function App() {
               {zonesTab === 'custom' ? (
                 <>
                   {/* Formulario para añadir nueva zona personalizada */}
-                  <form onSubmit={handleAddCustomZone} className="bg-slate-950/45 p-4.5 rounded-xl border border-slate-850/80 space-y-4">
+                  <form onSubmit={handleAddCustomZone} className="bg-slate-950/45 p-5 rounded-xl border border-slate-850/80 space-y-4">
                     <h4 className="text-xs font-bold text-slate-350 uppercase tracking-wider">Añadir Nueva Zona</h4>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                       <div className="md:col-span-2">
@@ -1781,7 +1799,7 @@ export default function App() {
                           value={newZoneForm.name}
                           onChange={(e) => setNewZoneForm(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Nombre de la zona..."
-                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder-slate-650 transition-all"
+                          className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 placeholder-slate-650 transition-all"
                         />
                       </div>
                       <div>
@@ -1791,7 +1809,7 @@ export default function App() {
                           type="number"
                           value={newZoneForm.limit}
                           onChange={(e) => setNewZoneForm(prev => ({ ...prev, limit: Number(e.target.value) }))}
-                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                          className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                         />
                       </div>
                       <div>
@@ -1801,7 +1819,7 @@ export default function App() {
                           type="number"
                           value={newZoneForm.minM2}
                           onChange={(e) => setNewZoneForm(prev => ({ ...prev, minM2: Number(e.target.value) }))}
-                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                          className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                         />
                       </div>
                       <div>
@@ -1811,7 +1829,7 @@ export default function App() {
                           type="number"
                           value={newZoneForm.avgPriceM2}
                           onChange={(e) => setNewZoneForm(prev => ({ ...prev, avgPriceM2: Number(e.target.value) }))}
-                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                          className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                         />
                       </div>
                     </div>
@@ -1824,12 +1842,12 @@ export default function App() {
                           step="0.1"
                           value={newZoneForm.avgRentPriceM2}
                           onChange={(e) => setNewZoneForm(prev => ({ ...prev, avgRentPriceM2: Number(e.target.value) }))}
-                          className="w-32 px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                          className="w-32 h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                         />
                       </div>
                       <button
                         type="submit"
-                        className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-emerald-500/15 transition-all cursor-pointer self-end uppercase tracking-wider"
+                        className="h-11 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-emerald-500/15 transition-all cursor-pointer self-end uppercase tracking-wider hover:scale-[1.02] active:scale-[0.98]"
                       >
                         Crear Zona
                       </button>
@@ -1876,7 +1894,7 @@ export default function App() {
                         value={provinceSearch}
                         onChange={(e) => setProvinceSearch(e.target.value)}
                         placeholder="Buscar provincia... (ej. Avila, Madrid, Segovia)"
-                        className="flex-1 px-4 py-2 border border-slate-850/80 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder-slate-600 transition-all"
+                        className="flex-1 h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 placeholder-slate-600 transition-all"
                       />
                     </div>
  
@@ -1900,7 +1918,7 @@ export default function App() {
                           const avgRentPriceM2 = override.avgRentPriceM2 ?? base.avgRentPriceM2;
  
                           return (
-                            <div key={key} className={`p-4.5 bg-slate-950/30 rounded-2xl border transition-all ${hasOverrides ? 'border-amber-500/35 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.03)]' : 'border-slate-850/85'}`}>
+                            <div key={key} className={`p-5 bg-slate-950/30 rounded-2xl border transition-all ${hasOverrides ? 'border-amber-500/35 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.03)]' : 'border-slate-850/85'}`}>
                               <div className="flex justify-between items-center mb-3">
                                 <span className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
                                   {base.name}
@@ -1909,7 +1927,7 @@ export default function App() {
                                 {hasOverrides && (
                                   <button
                                     onClick={() => handleResetProvinceOverride(key)}
-                                    className="text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800 hover:border-slate-750 transition-all cursor-pointer"
+                                    className="text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-white bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 hover:border-slate-750 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                                   >
                                     Restablecer
                                   </button>
@@ -1922,7 +1940,7 @@ export default function App() {
                                     type="number"
                                     value={limit}
                                     onChange={(e) => handleUpdateProvinceOverride(key, 'limit', e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                    className="w-full h-9 px-2.5 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                                   />
                                 </div>
                                 <div>
@@ -1931,7 +1949,7 @@ export default function App() {
                                     type="number"
                                     value={minM2}
                                     onChange={(e) => handleUpdateProvinceOverride(key, 'minM2', e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                    className="w-full h-9 px-2.5 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                                   />
                                 </div>
                                 <div>
@@ -1940,7 +1958,7 @@ export default function App() {
                                     type="number"
                                     value={avgPriceM2}
                                     onChange={(e) => handleUpdateProvinceOverride(key, 'avgPriceM2', e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                    className="w-full h-9 px-2.5 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                                   />
                                 </div>
                                 <div>
@@ -1950,7 +1968,7 @@ export default function App() {
                                     step="0.1"
                                     value={avgRentPriceM2}
                                     onChange={(e) => handleUpdateProvinceOverride(key, 'avgRentPriceM2', e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                    className="w-full h-9 px-2.5 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                                   />
                                 </div>
                               </div>
