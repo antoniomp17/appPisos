@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Building, MapPin, Calculator, TrendingUp, AlertTriangle, 
   CheckCircle, Plus, Trash2, Settings, ArrowUpDown, Euro,
-  Link, Loader2, Download, Upload, RotateCcw, Cloud, RefreshCw, Edit
+  Link, Loader2, Download, Upload, RotateCcw, Cloud, RefreshCw, Edit, Sparkles
 } from 'lucide-react';
 
 // --- BASE DE DATOS DE PROVINCIAS BASE ---
@@ -345,6 +345,76 @@ export default function App() {
         });
       }
     }
+
+    const bookmarkletParam = params.get('import_bookmarklet');
+    if (bookmarkletParam) {
+      try {
+        const decodedString = decodeURIComponent(escape(atob(bookmarkletParam)));
+        const payload = JSON.parse(decodedString);
+        
+        // Determinar la zona en base a las provincias y sus keywords
+        let matchedZona = 'Segovia'; // valor por defecto
+        const searchableText = (payload.fullText || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        
+        for (const key of Object.keys(provinciasDefault)) {
+          const p = provinciasDefault[key];
+          const nameLower = (p.name || key).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          if (searchableText.includes(nameLower)) {
+            matchedZona = key;
+            break;
+          }
+          if (p.keywords && p.keywords.length > 0) {
+            let found = false;
+            for (const kw of p.keywords) {
+              const kwLower = kw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              if (searchableText.includes(kwLower)) {
+                matchedZona = key;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+        }
+
+        // Auto-sugerencia de alquiler si no viene
+        let sugeridoAlquiler = payload.alquiler;
+        if (!sugeridoAlquiler && payload.m2) {
+          const zoneDefault = provinciasDefault[matchedZona];
+          if (zoneDefault) {
+            sugeridoAlquiler = Math.round(payload.m2 * zoneDefault.avgRentPriceM2);
+          }
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          nombre: payload.nombre || prev.nombre,
+          precio: payload.precio !== null ? Number(payload.precio) : prev.precio,
+          m2: payload.m2 !== null ? Number(payload.m2) : prev.m2,
+          planta: payload.planta || prev.planta,
+          zona: matchedZona,
+          alquiler: sugeridoAlquiler || prev.alquiler,
+          comunidad: payload.comunidad !== null ? Number(payload.comunidad) : prev.comunidad,
+          ibi: payload.ibi !== null ? Number(payload.ibi) : prev.ibi,
+          reforma: 0
+        }));
+
+        setNotification({
+          text: `¡Anuncio importado con éxito! Se cargaron los datos de "${payload.nombre || 'Inmueble'}" en el formulario.`,
+          type: 'success'
+        });
+
+        // Limpiar el parámetro de la URL sin recargar la página
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      } catch (err) {
+        console.error("Error al decodificar import_bookmarklet:", err);
+        setNotification({
+          text: 'Fallo al importar datos desde el marcador. El enlace podría estar incompleto o dañado.',
+          type: 'error'
+        });
+      }
+    }
   }, []);
 
   // --- MÉTODOS DE SINCRONIZACIÓN EN LA NUBE ---
@@ -573,6 +643,16 @@ export default function App() {
   const [isScraping, setIsScraping] = useState(false);
   const [showHtmlPaste, setShowHtmlPaste] = useState(false);
   const [rawHtmlText, setRawHtmlText] = useState('');
+
+  const bookmarkletCode = `javascript:(function(){try{var t=document.querySelector('h1.item-title')?.innerText||document.querySelector('.main-info__title-main')?.innerText||document.title;t=t.replace(/\\s+/g,' ').trim();var pText=document.querySelector('.info-data-price .txt-bold')?.innerText||document.querySelector('.info-data-price')?.innerText||document.querySelector('.item-price')?.innerText||'';var pMatch=pText.replace(/\\./g,'').match(/(\\d+)/);var precio=pMatch?parseInt(pMatch[1],10):null;var m2=null;var list=document.querySelectorAll('.details-property_features li, .info-features span');list.forEach(function(el){if(el.querySelector('div'))return;var text=el.innerText.toLowerCase();if(text.includes('€/m')||text.includes('/m²')||text.includes('/m2'))return;if(text.includes('m²')||text.includes('m2')||text.includes('metros')){var mMatch=text.match(/(\\d+)\\s*(?:m²|m2|metros)/);if(mMatch)m2=parseInt(mMatch[1],10)}});var comunidad=null;var ibi=null;var priceFeatures=document.querySelectorAll('.details-property_features li, .info-features span, .price-features__container p, .price-features__container span, .price-features__container li');priceFeatures.forEach(function(el){if(el.querySelector('div'))return;var text=el.innerText.toLowerCase();if(text.includes('comunidad')&&text.includes('€')){var cMatch=text.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euro)/);if(cMatch)comunidad=Math.round(parseFloat(cMatch[1].replace('.','').replace(',','.')))}if((text.includes('ibi')||text.includes('contribucion')||text.includes('contribución'))&&text.includes('€')){var iMatch=text.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euro)/);if(iMatch)ibi=Math.round(parseFloat(iMatch[1].replace('.','').replace(',','.')))}});var description=document.querySelector('#descriptionText, .description-content, .adComments, .comment')?.innerText||'';if(comunidad===null&&description){var cMatch=description.match(/(?:comunidad|gastos.*?comunidad).*?(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros)/i)||description.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros).*?(?:comunidad|gastos.*?comunidad)/i);if(cMatch)comunidad=Math.round(parseFloat(cMatch[1].replace('.','').replace(',','.')))}if(ibi===null&&description){var iMatch=description.match(/(?:ibi|contribucion|contribución).*?(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros)/i)||description.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros).*?(?:ibi|contribucion|contribución)/i);if(iMatch)ibi=Math.round(parseFloat(iMatch[1].replace('.','').replace(',','.')))}var tieneAscensor=null;var plantaRaw='';list.forEach(function(el){if(el.querySelector('div'))return;var text=el.innerText.toLowerCase();if(text.includes('ascensor')){if(text.includes('con ascensor')||text.includes('tiene ascensor')||text.includes('c/asc.'))tieneAscensor=!0;else if(text.includes('sin ascensor')||text.includes('no tiene ascensor')||text.includes('s/asc.'))tieneAscensor=!1}if(text.includes('planta')||text.includes('bajo')||text.includes('entreplanta')){if(text.length<100)plantaRaw+=' '+text}});var planta='1';if(plantaRaw.includes('bajo')||plantaRaw.includes('planta baja')){planta='Bajo'}else if(plantaRaw.includes('entreplanta')){planta='Entreplanta'}else{var fMatch=plantaRaw.match(/(\\d+)(?:ª|º|planta)/)||plantaRaw.match(/planta\\s*(\\d+)/)||plantaRaw.match(/(\\d+)\\s*(?:ª|º)/);if(fMatch){var num=parseInt(fMatch[1],10);if(num===0)planta='Bajo';else if(num>=3)planta=tieneAscensor?'3_con':'3_sin';else planta=String(num)}}var breadcrumbs=document.querySelector('.breadcrumb-navigation, .breadcrumb-list')?.innerText||'';var payload={nombre:t,precio:precio,m2:m2,comunidad:comunidad,ibi:ibi,planta:planta,url:window.location.href,fullText:(t+' '+breadcrumbs+' '+description).toLowerCase()};var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));window.open('${window.location.origin}/?import_bookmarklet='+b64,'_blank')}catch(e){alert('Error al extraer datos: '+e.message)}})();`;
+
+  const handleCopyBookmarklet = () => {
+    navigator.clipboard.writeText(bookmarkletCode);
+    setNotification({
+      text: '¡Código del marcador copiado al portapapeles! Guárdalo en los marcadores de tu móvil.',
+      type: 'success'
+    });
+  };
 
   // --- ESTADO DEL FORMULARIO ---
   const initialForm = {
@@ -965,49 +1045,57 @@ export default function App() {
               
               <form onSubmit={handleAddProperty} className="p-6 space-y-4">
                 
-                {/* NUEVO: INPUT MAGICO DE IDEALISTA O PEGAR HTML */}
-                <div className="border-glowing-gradient p-4 rounded-xl space-y-2.5 shadow-lg shadow-emerald-500/5 bg-slate-950/40">
-                  {!showHtmlPaste ? (
-                    <>
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <input
-                            type="url"
-                            value={idealistaUrl}
-                            onChange={(e) => setIdealistaUrl(e.target.value)}
-                            placeholder="Pega aquí enlace de Idealista..."
-                            className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 placeholder:text-slate-655 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleScrapeUrl}
-                          disabled={isScraping || idealistaUrl.length === 0}
-                          className="flex-none flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 cursor-pointer"
-                          title="Autocompletar datos"
-                        >
-                          {isScraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <div className="text-right">
-                        <button
-                          type="button"
-                          onClick={() => setShowHtmlPaste(true)}
-                          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold hover:underline focus:outline-none transition-colors"
-                        >
-                          O pegar código HTML del anuncio
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2.5">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">Código fuente HTML del anuncio:</label>
+                {/* Marcador Importador Mágico de Idealista */}
+                <div className="border-glowing-gradient p-4 rounded-xl space-y-3 shadow-lg shadow-emerald-500/5 bg-slate-950/40">
+                  <div className="flex items-center gap-2 text-emerald-450 font-bold text-xs uppercase tracking-wider">
+                    <Sparkles className="h-4 w-4" />
+                    <span>Importación Mágica (Idealista)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-450 leading-normal">
+                    Arrastra este botón verde a tu barra de marcadores. Cuando estés en cualquier anuncio de Idealista, haz clic en él para importar todos los datos al instante:
+                  </p>
+                  
+                  <div className="flex justify-center py-1">
+                    <a
+                      href={`javascript:(function(){try{var t=document.querySelector('h1.item-title')?.innerText||document.querySelector('.main-info__title-main')?.innerText||document.title;t=t.replace(/\\s+/g,' ').trim();var pText=document.querySelector('.info-data-price .txt-bold')?.innerText||document.querySelector('.info-data-price')?.innerText||document.querySelector('.item-price')?.innerText||'';var pMatch=pText.replace(/\\./g,'').match(/(\\d+)/);var precio=pMatch?parseInt(pMatch[1],10):null;var m2=null;var list=document.querySelectorAll('.details-property_features li, .info-features span');list.forEach(function(el){if(el.querySelector('div'))return;var text=el.innerText.toLowerCase();if(text.includes('€/m')||text.includes('/m²')||text.includes('/m2'))return;if(text.includes('m²')||text.includes('m2')||text.includes('metros')){var mMatch=text.match(/(\\d+)\\s*(?:m²|m2|metros)/);if(mMatch)m2=parseInt(mMatch[1],10)}});var comunidad=null;var ibi=null;var priceFeatures=document.querySelectorAll('.details-property_features li, .info-features span, .price-features__container p, .price-features__container span, .price-features__container li');priceFeatures.forEach(function(el){if(el.querySelector('div'))return;var text=el.innerText.toLowerCase();if(text.includes('comunidad')&&text.includes('€')){var cMatch=text.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euro)/);if(cMatch)comunidad=Math.round(parseFloat(cMatch[1].replace('.','').replace(',','.')))}if((text.includes('ibi')||text.includes('contribucion')||text.includes('contribución'))&&text.includes('€')){var iMatch=text.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euro)/);if(iMatch)ibi=Math.round(parseFloat(iMatch[1].replace('.','').replace(',','.')))}});var description=document.querySelector('#descriptionText, .description-content, .adComments, .comment')?.innerText||'';if(comunidad===null&&description){var cMatch=description.match(/(?:comunidad|gastos.*?comunidad).*?(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros)/i)||description.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros).*?(?:comunidad|gastos.*?comunidad)/i);if(cMatch)comunidad=Math.round(parseFloat(cMatch[1].replace('.','').replace(',','.')))}if(ibi===null&&description){var iMatch=description.match(/(?:ibi|contribucion|contribución).*?(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros)/i)||description.match(/(\\d+(?:[\\.,]\\d+)?)\\s*(?:€|euros).*?(?:ibi|contribucion|contribución)/i);if(iMatch)ibi=Math.round(parseFloat(iMatch[1].replace('.','').replace(',','.')))}var tieneAscensor=null;var plantaRaw='';list.forEach(function(el){if(el.querySelector('div'))return;var text=el.innerText.toLowerCase();if(text.includes('ascensor')){if(text.includes('con ascensor')||text.includes('tiene ascensor')||text.includes('c/asc.'))tieneAscensor=!0;else if(text.includes('sin ascensor')||text.includes('no tiene ascensor')||text.includes('s/asc.'))tieneAscensor=!1}if(text.includes('planta')||text.includes('bajo')||text.includes('entreplanta')){if(text.length<100)plantaRaw+=' '+text}});var planta='1';if(plantaRaw.includes('bajo')||plantaRaw.includes('planta baja')){planta='Bajo'}else if(plantaRaw.includes('entreplanta')){planta='Entreplanta'}else{var fMatch=plantaRaw.match(/(\\d+)(?:ª|º|planta)/)||plantaRaw.match(/planta\\s*(\\d+)/)||plantaRaw.match(/(\\d+)\\s*(?:ª|º)/);if(fMatch){var num=parseInt(fMatch[1],10);if(num===0)planta='Bajo';else if(num>=3)planta=tieneAscensor?'3_con':'3_sin';else planta=String(num)}}var breadcrumbs=document.querySelector('.breadcrumb-navigation, .breadcrumb-list')?.innerText||'';var payload={nombre:t,precio:precio,m2:m2,comunidad:comunidad,ibi:ibi,planta:planta,url:window.location.href,fullText:(t+' '+breadcrumbs+' '+description).toLowerCase()};var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));window.open('${window.location.origin}/?import_bookmarklet='+b64,'_blank')}catch(e){alert('Error al extraer datos: '+e.message)}})();`}
+                      className="inline-flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-extrabold text-white rounded-xl shadow-md cursor-grab active:cursor-grabbing hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      title="Arrastra este botón a tus marcadores"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                      Analizar en REI
+                    </a>
+                  </div>
+                  
+                  <div className="text-center space-y-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={handleCopyBookmarklet}
+                      className="inline-flex items-center gap-1.5 text-[10px] text-emerald-400 hover:text-emerald-300 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/20 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                      title="Copiar código de marcador para añadirlo manualmente en móvil"
+                    >
+                      <Download className="h-3 w-3" />
+                      Copiar Código del Marcador
+                    </button>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowHtmlPaste(true)}
+                        className="text-[9px] text-slate-500 hover:text-emerald-400 font-semibold focus:outline-none transition-colors"
+                      >
+                        ¿No tienes barra de marcadores? Pegar HTML manualmente
+                      </button>
+                    </div>
+                  </div>
+
+                  {showHtmlPaste && (
+                    <div className="pt-2 border-t border-slate-900/60 space-y-2.5">
                       <textarea
                         value={rawHtmlText}
                         onChange={(e) => setRawHtmlText(e.target.value)}
-                        placeholder="Pega aquí todo el código HTML (Ver código fuente / Ctrl+U)..."
-                        rows={4}
-                        className="w-full rounded-lg border-slate-850 focus:border-emerald-500 focus:ring-emerald-500/20 text-[10px] font-mono px-3 py-2 border bg-slate-950 text-slate-100 placeholder:text-slate-650 focus:outline-none"
+                        placeholder="Pega el código HTML completo aquí (Ctrl+U en Idealista)..."
+                        rows={3}
+                        className="w-full rounded-lg border-slate-850 text-[10px] font-mono px-3 py-2 border bg-slate-950 text-slate-100 placeholder:text-slate-650 focus:outline-none focus:border-emerald-500/50"
                       />
                       <div className="flex justify-between items-center">
                         <button
@@ -1016,17 +1104,17 @@ export default function App() {
                             setShowHtmlPaste(false);
                             setRawHtmlText('');
                           }}
-                          className="text-xs text-slate-400 hover:text-slate-200 font-medium focus:outline-none transition-colors"
+                          className="text-[10px] text-slate-400 hover:text-slate-200"
                         >
-                          Cancelar
+                          Ocultar
                         </button>
                         <button
                           type="button"
                           onClick={handleParseHtml}
                           disabled={isScraping || !rawHtmlText.trim()}
-                          className="flex justify-center items-center px-3.5 py-1.5 border border-transparent rounded-lg shadow-md text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-[10px] font-bold cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
                         >
-                          {isScraping ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : null} Extraer Datos
+                          {isScraping ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null} Extraer Datos
                         </button>
                       </div>
                     </div>
