@@ -280,6 +280,9 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [cloudMode, setCloudMode] = useState(() => localStorage.getItem('appPisos_cloudMode') || null);
+
+  // --- ESTADO INE IPV ---
+  const [ineData, setIneData] = useState(null); // { byccaa: {ccaa: {variacionAnual, anyo, periodo}}, lastPeriod: string }
   
   // --- ESTADOS DE NOTIFICACIÓN FLOTANTE ---
   const [notification, setNotification] = useState(null);
@@ -294,6 +297,18 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  // Cargar IPV del INE al montar
+  useEffect(() => {
+    fetch('/api/ine-precios')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.success) {
+          setIneData(data);
+        }
+      })
+      .catch(() => {}); // fallo silencioso si no hay servidor
+  }, []);
 
   // --- CARGA DE DATOS DESDE ENLACE DE SINCRONIZACIÓN (Base64 URL) ---
   useEffect(() => {
@@ -1976,6 +1991,26 @@ export default function App() {
                 <>
                   {/* Tab Provincias: Búsqueda y Overrides */}
                   <div className="space-y-4">
+                    {/* Badge de fuente de datos */}
+                    <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-950/50 rounded-xl border border-slate-850/60">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fuente datos venta:</span>
+                        <span className="text-[10px] text-slate-300 font-semibold">MIVAU — Valor Tasado Vivienda Libre Q4 2024</span>
+                      </div>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        {ineData ? (
+                          <>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">IPV INE:</span>
+                            <span className="text-[10px] text-teal-400 font-bold">{ineData.lastPeriod}</span>
+                            <span className="text-[10px] text-slate-500">(variación anual por CCAA activa)</span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-slate-600 italic">IPV INE no disponible</span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -2005,12 +2040,25 @@ export default function App() {
                           const avgPriceM2 = override.avgPriceM2 ?? base.avgPriceM2;
                           const avgRentPriceM2 = override.avgRentPriceM2 ?? base.avgRentPriceM2;
  
+                          // Obtener variación IPV para esta CCAA
+                          const ccaa = base.ccaa;
+                          const ipvData = ineData && ccaa ? ineData.byccaa[ccaa] : null;
+
                           return (
                             <div key={key} className={`p-5 bg-slate-950/30 rounded-2xl border transition-all ${hasOverrides ? 'border-amber-500/35 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.03)]' : 'border-slate-850/85'}`}>
                               <div className="flex justify-between items-center mb-3">
                                 <span className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
                                   {base.name}
                                   {hasOverrides && <span className="text-[8px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-1.5 py-0.2 rounded font-bold uppercase">Modificado</span>}
+                                  {ipvData && (
+                                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+                                      ipvData.variacionAnual >= 10 ? 'bg-red-500/10 text-red-400 border-red-500/25' :
+                                      ipvData.variacionAnual >= 5  ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
+                                                                      'bg-teal-500/10 text-teal-400 border-teal-500/25'
+                                    }`}>
+                                      IPV {ipvData.variacionAnual > 0 ? '+' : ''}{ipvData.variacionAnual}% anual
+                                    </span>
+                                  )}
                                 </span>
                                 {hasOverrides && (
                                   <button

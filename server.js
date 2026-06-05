@@ -590,6 +590,114 @@ app.get('/api/portfolio/load/:code', async (req, res) => {
   }
 });
 
+// =====================================================================
+// ENDPOINT INE: Índice de Precios de Vivienda (IPV) por CCAA
+// Fuente: INE tabla 25171 - actualización trimestral
+// =====================================================================
+let ineCache = null;
+let ineCacheTimestamp = 0;
+const INE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+// Mapeo de nombres de CCAA tal como los devuelve el INE → clave usada en provincias.json
+const INE_CCAA_MAP = {
+  'Nacional':                              'Nacional',
+  'Andalucía':                             'Andalucía',
+  'Aragón':                                'Aragón',
+  'Asturias, Principado de':              'Asturias',
+  'Balears, Illes':                        'Illes Balears',
+  'Canarias':                              'Canarias',
+  'Cantabria':                             'Cantabria',
+  'Castilla y León':                       'Castilla y León',
+  'Castilla - La Mancha':                  'Castilla-La Mancha',
+  'Cataluña':                              'Cataluña',
+  'Comunitat Valenciana':                  'Com. Valenciana',
+  'Extremadura':                           'Extremadura',
+  'Galicia':                               'Galicia',
+  'Madrid, Comunidad de':                  'Madrid',
+  'Murcia, Región de':                     'Murcia',
+  'Navarra, Comunidad Foral de':           'Navarra',
+  'País Vasco':                            'País Vasco',
+  'Rioja, La':                             'La Rioja',
+  'Ceuta':                                 'Ceuta',
+  'Melilla':                               'Melilla',
+};
+
+app.get('/api/ine-precios', async (req, res) => {
+  const now = Date.now();
+
+  // Devolver caché si aún es válida
+  if (ineCache && (now - ineCacheTimestamp) < INE_CACHE_TTL_MS) {
+    console.log('[INE] Sirviendo datos desde caché.');
+    return res.json({ success: true, fromCache: true, ...ineCache });
+  }
+
+  console.log('[INE] Consultando API INE (tabla 25171 – IPV por CCAA)...');
+
+  try {
+    const response = await axios.get(
+      'https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/25171?nult=4',
+      { timeout: 15000 }
+    );
+
+    const raw = response.data;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      throw new Error('Respuesta vacía o inesperada de la API del INE.');
+    }
+
+    // Extraer solo las series de variación anual general (Nombre contiene "General. Variación anual")
+    const byccaa = {};
+    let lastPeriod = null;
+
+    for (const serie of raw) {
+      if (!serie.Nombre || !serie.Nombre.includes('General. Variación anual')) continue;
+      if (!Array.isArray(serie.Data) || serie.Data.length === 0) continue;
+
+      // El nombre tiene formato "Comunidad. General. Variación anual. "
+      const match = serie.Nombre.match(/^(.+?)\.\s*General\.\s*Variación anual/);
+      if (!match) continue;
+
+      const ineNombre = match[1].trim();
+      const ccaaKey = INE_CCAA_MAP[ineNombre] || ineNombre;
+
+      // Último dato disponible (nult=4 devuelve 4 trimestres, el primero es el más reciente)
+      const latest = serie.Data[0];
+      if (!latest) continue;
+
+      byccaa[ccaaKey] = {
+        variacionAnual: latest.Valor,
+        anyo: latest.Anyo,
+        periodo: latest.FK_Periodo,
+      };
+
+      if (!lastPeriod) {
+        // Determinar el trimestre legible
+        const trimNum = latest.FK_Periodo; // 19=Q1, 20=Q2, 21=Q3, 22=Q4 (aprox.)
+        const trimMap = { 19: 'T1', 20: 'T2', 21: 'T3', 22: 'T4' };
+        lastPeriod = `${trimMap[trimNum] || 'T?'} ${latest.Anyo}`;
+      }
+    }
+
+    ineCache = { byccaa, lastPeriod };
+    ineCacheTimestamp = now;
+
+    console.log(`[INE] Datos obtenidos. Último período: ${lastPeriod}. CCAA procesadas: ${Object.keys(byccaa).length}`);
+
+    return res.json({ success: true, fromCache: false, byccaa, lastPeriod });
+  } catch (err) {
+    console.error('[INE Error]', err.message);
+
+    // Si hay caché antigua, devolverla igualmente con aviso
+    if (ineCache) {
+      return res.json({ success: true, fromCache: true, stale: true, ...ineCache });
+    }
+
+    return res.status(502).json({
+      success: false,
+      error: 'No se pudo obtener el Índice de Precios de Vivienda del INE. Inténtalo de nuevo más tarde.'
+    });
+  }
+});
+
 // Ruta comodín para redirigir cualquier petición de página al frontend de React (SPA fallback)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
