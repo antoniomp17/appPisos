@@ -128,8 +128,8 @@ export default function App() {
     }
     // Datos de ejemplo por defecto
     return [
-      { id: '1', nombre: 'Piso Hospital Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30 },
-      { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25 },
+      { id: '1', nombre: 'Piso Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30, honorarios: 0, gastosNotaria: 2000 },
+      { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25, honorarios: 0, gastosNotaria: 2000 },
     ];
   });
 
@@ -633,8 +633,8 @@ export default function App() {
   const handleResetDemo = () => {
     if (confirm('¿Quieres restablecer la cartera de inmuebles de demostración? Esto borrará tus inmuebles actuales.')) {
       setProperties([
-        { id: '1', nombre: 'Piso Hospital Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30 },
-        { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25 },
+        { id: '1', nombre: 'Piso Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30, honorarios: 0, gastosNotaria: 2000 },
+        { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25, honorarios: 0, gastosNotaria: 2000 },
       ]);
       setExpandedPropertyId(null);
     }
@@ -672,7 +672,7 @@ export default function App() {
   // --- ESTADO DEL FORMULARIO ---
   const initialForm = {
     nombre: '', zona: 'Segovia', planta: '1', m2: 65, precio: 100000, itp: 8, reforma: 5000,
-    alquiler: 700, comunidad: 40, ibi: 250, seguro: 150, tin: 3.5, plazo: 30
+    alquiler: 700, comunidad: 40, ibi: 250, seguro: 150, tin: 3.5, plazo: 30, honorarios: 0, gastosNotaria: 2000
   };
   const [formData, setFormData] = useState(initialForm);
   const [formErrors, setFormErrors] = useState([]);
@@ -784,9 +784,10 @@ export default function App() {
   // --- LÓGICA DE CÁLCULO FINANCIERO REACTIVO ---
   const calculateMetrics = (prop) => {
     // 1. Gastos y Capital
-    const notariaRegistro = 2000;
+    const notariaRegistro = prop.gastosNotaria !== undefined ? prop.gastosNotaria : 2000;
     const importeITP = prop.precio * (prop.itp / 100);
-    const gastosAdquisicion = importeITP + notariaRegistro + prop.reforma;
+    const honorariosInmo = prop.honorarios || 0;
+    const gastosAdquisicion = importeITP + notariaRegistro + prop.reforma + honorariosInmo;
     const entradaAportada = prop.precio * 0.20; // 20% no financiado
     const capitalAportadoTotal = entradaAportada + gastosAdquisicion;
     const financiacion = prop.precio * 0.80; // 80% financiado
@@ -884,10 +885,19 @@ export default function App() {
   // --- MANEJADORES DE EVENTOS ---
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? Number(value) : value
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: type === 'number' ? Number(value) : value
+      };
+      if (name === 'zona') {
+        const targetZone = zonesConfig[value];
+        if (targetZone && targetZone.itp !== undefined) {
+          updated.itp = targetZone.itp;
+        }
+      }
+      return updated;
+    });
   };
 
   const handleAddProperty = (e) => {
@@ -928,7 +938,9 @@ export default function App() {
       ibi: prop.ibi,
       seguro: prop.seguro,
       tin: prop.tin,
-      plazo: prop.plazo
+      plazo: prop.plazo,
+      honorarios: prop.honorarios || 0,
+      gastosNotaria: prop.gastosNotaria !== undefined ? prop.gastosNotaria : 2000
     });
     // Scroll suave hasta el formulario (arriba)
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1205,6 +1217,14 @@ export default function App() {
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-500 mb-1">Reforma (€)</label>
                       <input required type="number" name="reforma" value={formData.reforma} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Honorarios Inmobiliaria (€)</label>
+                      <input required type="number" name="honorarios" value={formData.honorarios} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Notaría y Registro (€)</label>
+                      <input required type="number" name="gastosNotaria" value={formData.gastosNotaria} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                   </div>
                 </div>
@@ -1536,15 +1556,62 @@ export default function App() {
                                         </div>
                                         <div className="flex justify-between text-slate-400">
                                           <span>Notaría, Registro y Gestoría:</span>
-                                          <span className="font-semibold text-slate-200">{formatCurrency(2000)}</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.gastosNotaria !== undefined ? prop.gastosNotaria : 2000)}</span>
                                         </div>
                                         <div className="flex justify-between text-slate-400">
                                           <span>Reforma Estimada:</span>
                                           <span className="font-semibold text-slate-200">{formatCurrency(prop.reforma)}</span>
                                         </div>
+                                        {prop.honorarios > 0 && (
+                                          <div className="flex justify-between text-slate-400">
+                                            <span>Honorarios Inmobiliaria:</span>
+                                            <span className="font-semibold text-slate-200">{formatCurrency(prop.honorarios)}</span>
+                                          </div>
+                                        )}
                                         <div className="border-t border-slate-800/85 my-1.5 pt-2 flex justify-between font-extrabold text-slate-100">
                                           <span>Capital Aportado Total:</span>
                                           <span className="text-emerald-400">{formatCurrency(m.capitalAportadoTotal)}</span>
+                                        </div>
+                                      </div>
+
+                                      {/* Desglose de Operativa Mensual */}
+                                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-4">Desglose de Operativa Mensual</h4>
+                                      <div className="bg-slate-900/80 rounded-xl border border-slate-850 p-4 space-y-2.5 text-xs shadow-md">
+                                        <div className="flex justify-between text-slate-400">
+                                          <span>Ingreso por Alquiler:</span>
+                                          <span className="font-semibold text-emerald-400">+{formatCurrency(prop.alquiler)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-slate-400">
+                                          <span>Cuota de Hipoteca:</span>
+                                          <span className="font-semibold text-red-400">-{formatCurrency(m.cuotaMensual)}</span>
+                                        </div>
+                                        {prop.comunidad > 0 && (
+                                          <div className="flex justify-between text-slate-400">
+                                            <span>Gastos de Comunidad:</span>
+                                            <span className="font-semibold text-red-400">-{formatCurrency(prop.comunidad)}</span>
+                                          </div>
+                                        )}
+                                        {prop.ibi > 0 && (
+                                          <div className="flex justify-between text-slate-400">
+                                            <span>Impuesto IBI (Mensual):</span>
+                                            <span className="font-semibold text-red-400">-{formatCurrency(prop.ibi / 12)}</span>
+                                          </div>
+                                        )}
+                                        {prop.seguro > 0 && (
+                                          <div className="flex justify-between text-slate-400">
+                                            <span>Seguro (Mensual):</span>
+                                            <span className="font-semibold text-red-400">-{formatCurrency(prop.seguro / 12)}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between text-slate-500">
+                                          <span>Provisión Vacancia (5%):</span>
+                                          <span className="font-semibold text-red-400/80">-{formatCurrency(prop.alquiler * 0.05)}</span>
+                                        </div>
+                                        <div className="border-t border-slate-800/85 my-1.5 pt-2 flex justify-between font-extrabold text-slate-100">
+                                          <span>Cash Flow Neto:</span>
+                                          <span className={m.cashFlowMensual >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                            {formatCurrency(m.cashFlowMensual)}/mes
+                                          </span>
                                         </div>
                                       </div>
                                     </div>
@@ -2039,6 +2106,7 @@ export default function App() {
                           const minM2 = override.minM2 ?? base.minM2;
                           const avgPriceM2 = override.avgPriceM2 ?? base.avgPriceM2;
                           const avgRentPriceM2 = override.avgRentPriceM2 ?? base.avgRentPriceM2;
+                          const itp = override.itp ?? base.itp ?? 8;
  
                           // Obtener variación IPV para esta CCAA
                           const ccaa = base.ccaa;
@@ -2069,7 +2137,7 @@ export default function App() {
                                   </button>
                                 )}
                               </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                 <div>
                                   <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Límite Compra (€)</label>
                                   <input
@@ -2104,6 +2172,16 @@ export default function App() {
                                     step="0.1"
                                     value={avgRentPriceM2}
                                     onChange={(e) => handleUpdateProvinceOverride(key, 'avgRentPriceM2', e.target.value)}
+                                    className="w-full h-9 px-2.5 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">ITP (%)</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={itp}
+                                    onChange={(e) => handleUpdateProvinceOverride(key, 'itp', e.target.value)}
                                     className="w-full h-9 px-2.5 border border-slate-800 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
                                   />
                                 </div>
