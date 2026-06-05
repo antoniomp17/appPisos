@@ -5,6 +5,7 @@ const cheerio = require('cheerio');
 const path = require('path');
 const fs = require('fs');
 const playwright = require('playwright-core');
+const provinciasConfig = require('./data/provincias.json');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -70,7 +71,7 @@ function parseIdealistaHTML(html, url = '') {
   // Si no se encontró en las características, buscar en elementos de texto individuales de la página
   if (!m2) {
     $('span, p, li').each((i, el) => {
-      if ($(el).children().length > 0) return; // solo elementos hoja para no duplicar
+      if ($(el).find('p, li, div, ul, ol').length > 0) return; // solo elementos hoja para no duplicar
       
       let text = $(el).text().toLowerCase().trim();
       if (text.includes('€/m') || text.includes('/m²') || text.includes('/m2')) {
@@ -91,8 +92,8 @@ function parseIdealistaHTML(html, url = '') {
   let ibi = null;
 
   // Buscar primero en la lista de características para ver si están explícitos
-  $('.details-property_features li, .info-features span').each((i, el) => {
-    if ($(el).children().length > 0) return;
+  $('.details-property_features li, .info-features span, .price-features__container p, .price-features__container span, .price-features__container li').each((i, el) => {
+    if ($(el).find('div').length > 0) return;
     let text = $(el).text().toLowerCase().trim();
     
     if (text.includes('comunidad') && (text.includes('€') || text.includes('euro'))) {
@@ -132,7 +133,7 @@ function parseIdealistaHTML(html, url = '') {
 
   // Buscar en características específicas (hojas del árbol HTML)
   $('.details-property_features li, .info-features span, .info-features-features').each((i, el) => {
-    if ($(el).children().length > 0) return;
+    if ($(el).find('div').length > 0) return;
     
     let text = $(el).text().toLowerCase().trim();
     
@@ -193,24 +194,47 @@ function parseIdealistaHTML(html, url = '') {
     }
   }
 
+  // Helper para normalizar texto para comparación sin acentos
+  const normalizeText = (str) => {
+    if (!str) return '';
+    return str.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, ''); // Elimina marcas diacríticas
+  };
+
   // Detectar la ciudad/zona buscando palabras clave en el título y migas de pan primero (más específico)
-  const breadcrumbsText = $('.breadcrumb-navigation, #breadcrumb, .main-info__title-minor, .breadcrumb-navigation ul li').text().toLowerCase();
-  const titleText = (nombre || '').toLowerCase();
+  const breadcrumbsText = $('.breadcrumb-navigation, #breadcrumb, .main-info__title-minor, .breadcrumb-navigation ul li').text();
+  const titleText = nombre || '';
   const mainLocationText = `${titleText} ${breadcrumbsText}`;
 
   const detectZona = (text) => {
-    if (text.includes('segovia')) return 'Segovia';
-    if (
-      text.includes('guadalajara') || 
-      text.includes('azuqueca') || 
-      text.includes('alovera') || 
-      text.includes('cabanillas') || 
-      text.includes('el casar') || 
-      text.includes('marchamalo')
-    ) return 'Guadalajara';
-    if (text.includes('talavera')) return 'Talavera';
-    if (text.includes('toledo')) return 'Toledo';
-    if (text.includes('avila') || text.includes('ávila')) return 'Avila';
+    const normalizedText = normalizeText(text);
+    if (!normalizedText) return null;
+
+    // Buscar en el config de provincias
+    for (const [key, config] of Object.entries(provinciasConfig)) {
+      // 1. Probar con el nombre de la provincia normalizado
+      const normalizedName = normalizeText(config.name);
+      if (normalizedText.includes(normalizedName)) {
+        return key;
+      }
+
+      // 2. Probar con la clave normalizada (ej: "avila", "segovia")
+      const normalizedKey = normalizeText(key);
+      if (normalizedText.includes(normalizedKey)) {
+        return key;
+      }
+
+      // 3. Probar con palabras clave personalizadas si existen
+      if (config.keywords && Array.isArray(config.keywords)) {
+        for (const keyword of config.keywords) {
+          const normalizedKeyword = normalizeText(keyword);
+          if (normalizedText.includes(normalizedKeyword)) {
+            return key;
+          }
+        }
+      }
+    }
     return null;
   };
 
@@ -218,7 +242,7 @@ function parseIdealistaHTML(html, url = '') {
 
   // Si no se detectó en el título o migas de pan, buscar en la descripción
   if (!zona) {
-    const descText = (description || '').toLowerCase();
+    const descText = description || '';
     zona = detectZona(descText);
   }
 

@@ -5,20 +5,14 @@ import {
   Link, Loader2, Download, Upload, RotateCcw, Cloud, RefreshCw, Edit
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DE ZONAS Y LÍMITES ---
-const ZONAS_CONFIG = {
-  'Segovia': { limit: 160000, minM2: 60, name: 'Segovia', avgRentPriceM2: 9.5, avgPriceM2: 1700 },
-  'Guadalajara': { limit: 160000, minM2: 60, name: 'Guadalajara (Azuqueca, Alovera...)', avgRentPriceM2: 10.5, avgPriceM2: 1850 },
-  'Toledo': { limit: 160000, minM2: 60, name: 'Toledo (Buenavista/Polígono)', avgRentPriceM2: 9.0, avgPriceM2: 1550 },
-  'Talavera': { limit: 120000, minM2: 0, name: 'Talavera (Hospital, Centro)', avgRentPriceM2: 7.0, avgPriceM2: 1050 }, // No especifica m2 mínimos en reglas
-  'Avila': { limit: 120000, minM2: 60, name: 'Ávila', avgRentPriceM2: 7.5, avgPriceM2: 1150 }
-};
+// --- BASE DE DATOS DE PROVINCIAS BASE ---
+import provinciasDefault from '../data/provincias.json';
 
 // --- ALGORITMO DE SCORE INMOBILIARIO ---
-const getPropertyScore = (prop, metrics) => {
+const getPropertyScore = (prop, metrics, zonesConfig) => {
   const selectedPlanta = PLANTAS.find(p => p.id === prop.planta);
   if (selectedPlanta?.blocked) {
-    return { grade: 'F', color: 'bg-red-100 text-red-700 border-red-200', label: 'Bloqueado' };
+    return { grade: 'F', color: 'bg-red-500/10 text-red-400 border-red-500/30', label: 'Bloqueado' };
   }
 
   let points = 0;
@@ -41,7 +35,7 @@ const getPropertyScore = (prop, metrics) => {
   else points -= 15;
 
   // 3. Comparación de precio de compra por m2 vs media zona - Max 20 pts
-  const config = ZONAS_CONFIG[prop.zona];
+  const config = zonesConfig[prop.zona];
   if (config && prop.m2 > 0) {
     const pricePerM2 = prop.precio / prop.m2;
     const diffPercent = ((pricePerM2 - config.avgPriceM2) / config.avgPriceM2) * 100;
@@ -76,32 +70,32 @@ const getPropertyScore = (prop, metrics) => {
   }
 
   let grade = 'C';
-  let color = 'bg-slate-100 text-slate-700 border-slate-200';
+  let color = 'bg-slate-800/80 text-slate-300 border-slate-700/80';
   let label = 'Aceptable';
 
   if (points >= 85) {
     grade = 'A+';
-    color = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    color = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-glow-emerald';
     label = 'Excelente';
   } else if (points >= 70) {
     grade = 'A';
-    color = 'bg-green-100 text-green-800 border-green-200';
+    color = 'bg-teal-500/10 text-teal-300 border-teal-500/30';
     label = 'Muy Bueno';
   } else if (points >= 55) {
     grade = 'B';
-    color = 'bg-blue-100 text-blue-800 border-blue-200';
+    color = 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-glow-blue';
     label = 'Bueno';
   } else if (points >= 40) {
     grade = 'C';
-    color = 'bg-amber-100 text-amber-800 border-amber-200';
+    color = 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-glow-amber';
     label = 'Aceptable';
   } else if (points >= 20) {
     grade = 'D';
-    color = 'bg-orange-100 text-orange-800 border-orange-200';
+    color = 'bg-orange-500/10 text-orange-400 border-orange-500/30';
     label = 'Riesgoso';
   } else {
     grade = 'E';
-    color = 'bg-red-100 text-red-800 border-red-200';
+    color = 'bg-red-500/10 text-red-450 border-red-500/30';
     label = 'No Recomendado';
   }
 
@@ -144,6 +138,135 @@ export default function App() {
     localStorage.setItem('appPisos_properties', JSON.stringify(properties));
   }, [properties]);
 
+  // --- ESTADO DE ZONAS PERSONALIZADAS Y OVERRIDES ---
+  const [customZones, setCustomZones] = useState(() => {
+    const saved = localStorage.getItem('appPisos_customZones');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing custom zones:", e);
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('appPisos_customZones', JSON.stringify(customZones));
+  }, [customZones]);
+
+  const [provinciasOverrides, setProvinciasOverrides] = useState(() => {
+    const saved = localStorage.getItem('appPisos_provinciasOverrides');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing province overrides:", e);
+      }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('appPisos_provinciasOverrides', JSON.stringify(provinciasOverrides));
+  }, [provinciasOverrides]);
+
+  const zonesConfig = useMemo(() => {
+    const config = {};
+    for (const [key, value] of Object.entries(provinciasDefault)) {
+      config[key] = {
+        ...value,
+        ...(provinciasOverrides[key] || {}),
+        isProvince: true,
+        key: key
+      };
+    }
+    customZones.forEach(zone => {
+      config[zone.id] = {
+        name: zone.name,
+        limit: zone.limit,
+        minM2: zone.minM2,
+        avgRentPriceM2: zone.avgRentPriceM2,
+        avgPriceM2: zone.avgPriceM2,
+        isCustom: true,
+        key: zone.id
+      };
+    });
+    return config;
+  }, [customZones, provinciasOverrides]);
+
+  const [showZonesModal, setShowZonesModal] = useState(false);
+  const [zonesTab, setZonesTab] = useState('custom'); // 'custom' | 'provinces'
+  const [provinceSearch, setProvinceSearch] = useState('');
+  const [newZoneForm, setNewZoneForm] = useState({
+    name: '',
+    limit: 150000,
+    minM2: 60,
+    avgPriceM2: 1500,
+    avgRentPriceM2: 9.0
+  });
+
+  const handleAddCustomZone = (e) => {
+    e.preventDefault();
+    if (!newZoneForm.name.trim()) return;
+
+    const zoneId = newZoneForm.name.trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '-');
+
+    if (zonesConfig[zoneId]) {
+      alert("Ya existe una zona o provincia con este nombre o identificación.");
+      return;
+    }
+
+    const newZone = {
+      id: zoneId,
+      name: newZoneForm.name.trim(),
+      limit: Number(newZoneForm.limit),
+      minM2: Number(newZoneForm.minM2),
+      avgPriceM2: Number(newZoneForm.avgPriceM2),
+      avgRentPriceM2: Number(newZoneForm.avgRentPriceM2)
+    };
+
+    setCustomZones(prev => [...prev, newZone]);
+    setNewZoneForm({
+      name: '',
+      limit: 150000,
+      minM2: 60,
+      avgPriceM2: 1500,
+      avgRentPriceM2: 9.0
+    });
+    setNotification({ text: `Zona "${newZone.name}" creada con éxito.`, type: 'success' });
+  };
+
+  const handleDeleteCustomZone = (id) => {
+    if (confirm("¿Seguro que quieres eliminar esta zona personalizada?")) {
+      setCustomZones(prev => prev.filter(z => z.id !== id));
+      setNotification({ text: "Zona eliminada", type: 'info' });
+    }
+  };
+
+  const handleUpdateProvinceOverride = (key, field, value) => {
+    setProvinciasOverrides(prev => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || {}),
+        [field]: Number(value)
+      }
+    }));
+  };
+
+  const handleResetProvinceOverride = (key) => {
+    setProvinciasOverrides(prev => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+    setNotification({ text: "Valores predeterminados restablecidos para esta provincia", type: 'info' });
+  };
+
   const [globalMortgage, setGlobalMortgage] = useState({
     active: false,
     tin: 4.5,
@@ -182,10 +305,26 @@ export default function App() {
         const decodedString = decodeURIComponent(escape(atob(dataParam)));
         const parsedData = JSON.parse(decodedString);
         
+        let propertiesCount = 0;
+        let customZonesCount = 0;
+
         if (Array.isArray(parsedData) && parsedData.length > 0) {
+          // Formato antiguo
           setProperties(parsedData);
+          propertiesCount = parsedData.length;
+        } else if (parsedData && Array.isArray(parsedData.properties)) {
+          // Formato nuevo
+          setProperties(parsedData.properties);
+          propertiesCount = parsedData.properties.length;
+          if (Array.isArray(parsedData.customZones)) {
+            setCustomZones(parsedData.customZones);
+            customZonesCount = parsedData.customZones.length;
+          }
+        }
+
+        if (propertiesCount > 0) {
           setNotification({
-            text: `¡Cartera importada con éxito! Se cargaron ${parsedData.length} inmuebles desde el enlace.`,
+            text: `¡Cartera importada con éxito! Se cargaron ${propertiesCount} inmuebles${customZonesCount > 0 ? ` y ${customZonesCount} zonas` : ''} desde el enlace.`,
             type: 'success'
           });
           
@@ -223,7 +362,7 @@ export default function App() {
       const response = await fetch('/api/portfolio/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cleanCode, properties })
+        body: JSON.stringify({ code: cleanCode, properties: { properties, customZones } })
       });
 
       const resData = await response.json();
@@ -267,7 +406,15 @@ export default function App() {
       const resData = await response.json();
 
       if (response.ok && resData.success) {
-        setProperties(resData.properties);
+        const data = resData.properties;
+        if (Array.isArray(data)) {
+          setProperties(data);
+        } else if (data && Array.isArray(data.properties)) {
+          setProperties(data.properties);
+          if (Array.isArray(data.customZones)) {
+            setCustomZones(data.customZones);
+          }
+        }
         setSyncCode(cleanCode);
         setCloudMode(resData.mode);
         localStorage.setItem('appPisos_syncCode', cleanCode);
@@ -304,7 +451,11 @@ export default function App() {
   const handleCopyShareLink = () => {
     try {
       // Codificar en Base64 UTF-8 seguro
-      const jsonString = JSON.stringify(properties);
+      const payload = {
+        properties,
+        customZones
+      };
+      const jsonString = JSON.stringify(payload);
       const base64Data = btoa(unescape(encodeURIComponent(jsonString)));
       
       const shareUrl = `${window.location.origin}${window.location.pathname}?data=${base64Data}`;
@@ -337,7 +488,11 @@ export default function App() {
 
   // --- MÉTODOS DE COPIA DE SEGURIDAD (IMPORTAR/EXPORTAR) ---
   const handleExportJSON = () => {
-    const dataStr = JSON.stringify(properties, null, 2);
+    const payload = {
+      properties,
+      customZones
+    };
+    const dataStr = JSON.stringify(payload, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -362,12 +517,25 @@ export default function App() {
           if (isValid) {
             if (confirm('¿Estás seguro de que quieres importar este archivo? Esto reemplazará tu cartera actual.')) {
               setProperties(parsed);
+              setCustomZones([]);
+            }
+          } else {
+            alert('El archivo JSON no tiene un formato de propiedades válido.');
+          }
+        } else if (parsed && Array.isArray(parsed.properties)) {
+          const isValid = parsed.properties.every(p => p.id && p.nombre && typeof p.precio === 'number');
+          if (isValid) {
+            if (confirm('¿Estás seguro de que quieres importar este archivo? Esto reemplazará tu cartera actual.')) {
+              setProperties(parsed.properties);
+              if (Array.isArray(parsed.customZones)) {
+                setCustomZones(parsed.customZones);
+              }
             }
           } else {
             alert('El archivo JSON no tiene un formato de propiedades válido.');
           }
         } else {
-          alert('El archivo JSON debe contener una lista de propiedades.');
+          alert('El archivo JSON debe contener una lista de propiedades o un paquete de cartera válido.');
         }
       } catch (err) {
         alert('Error al leer el archivo JSON: ' + err.message);
@@ -604,7 +772,7 @@ export default function App() {
     }
 
     // Reglas de Zona
-    const zonaConfig = ZONAS_CONFIG[formData.zona];
+    const zonaConfig = zonesConfig[formData.zona];
     if (zonaConfig) {
       if (formData.precio > zonaConfig.limit) {
         warnings.push(`Precio alto: Supera el límite de ${formatCurrency(zonaConfig.limit)} para ${zonaConfig.name}.`);
@@ -616,7 +784,7 @@ export default function App() {
 
     setFormErrors(errors);
     setFormWarnings(warnings);
-  }, [formData]);
+  }, [formData, zonesConfig]);
 
   // --- MANEJADORES DE EVENTOS ---
   const handleInputChange = (e) => {
@@ -693,25 +861,33 @@ export default function App() {
 
   // --- RENDERIZADO VISUAL ---
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-300">
+      {/* Luces de ambiente (Decorative Blur Glows) */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/5 blur-[120px] pointer-events-none"></div>
+
       {/* HEADER */}
-      <header className="bg-slate-900 text-white shadow-md sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Building className="h-6 w-6 text-emerald-400" />
-            <h1 className="text-xl font-bold tracking-tight">REI Analytics Pro</h1>
+      <header className="bg-slate-900/60 backdrop-blur-md border-b border-slate-850 sticky top-0 z-20 shadow-[0_4px_30px_rgba(0,0,0,0.3)]">
+        <div className="max-w-[1600px] mx-auto px-4 py-3.5 sm:px-6 lg:px-8 flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-glow-emerald">
+              <Building className="h-5.5 w-5.5 text-emerald-400" />
+            </div>
+            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-slate-50 via-slate-100 to-slate-200 bg-clip-text">
+              REI <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Analytics Pro</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 setInputSyncCode(syncCode);
                 setSyncMessage(null);
                 setShowSyncModal(true);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.8 border text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 syncCode 
-                  ? 'border-blue-500/30 bg-blue-950/20 text-blue-400 hover:bg-blue-950/40 hover:border-blue-500/50' 
-                  : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  ? 'border-blue-500/30 bg-blue-950/40 text-blue-400 hover:bg-blue-950/60 hover:border-blue-500/50 shadow-glow-blue' 
+                  : 'border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-slate-350 hover:text-white'
               }`}
               title="Sincronizar cartera en la nube / otros dispositivos"
             >
@@ -719,15 +895,26 @@ export default function App() {
               <span>{syncCode ? `Nube: ${syncCode}` : 'Sincronizar'}</span>
             </button>
             <button
+              onClick={() => {
+                setProvinceSearch('');
+                setShowZonesModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.8 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer"
+              title="Configurar parámetros de las Zonas y Provincias"
+            >
+              <Settings className="h-3.5 w-3.5 text-slate-400" />
+              <span>Zonas</span>
+            </button>
+            <button
               onClick={handleResetDemo}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.8 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer"
               title="Restablecer datos de ejemplo"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Restablecer Demo</span>
+              <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+              <span className="hidden sm:inline">Demo</span>
             </button>
-            <label className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg transition-colors cursor-pointer">
-              <Upload className="h-3.5 w-3.5" />
+            <label className="flex items-center gap-1.5 px-3 py-1.8 border border-slate-800 bg-slate-900/80 hover:bg-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer">
+              <Upload className="h-3.5 w-3.5 text-slate-400" />
               <span className="hidden sm:inline">Importar</span>
               <input
                 type="file"
@@ -738,7 +925,7 @@ export default function App() {
             </label>
             <button
               onClick={handleExportJSON}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.8 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-bold text-white rounded-lg shadow-md hover:shadow-emerald-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Exportar</span>
@@ -752,21 +939,21 @@ export default function App() {
           
           {/* SECCIÓN LATERAL: FORMULARIO */}
           <div className="w-full lg:w-[400px] shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden sticky top-24">
-              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/80 shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden sticky top-24">
+              <div className="bg-slate-900/80 border-b border-slate-800/80 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
                   {editingPropertyId ? (
-                    <Edit className="h-5 w-5 text-blue-600" />
+                    <Edit className="h-5 w-5 text-emerald-450" />
                   ) : (
-                    <Plus className="h-5 w-5 text-blue-600" />
+                    <Plus className="h-5 w-5 text-emerald-450" />
                   )}
-                  <h2 className="font-semibold text-lg text-slate-800">
+                  <h2 className="font-bold text-base text-slate-100">
                     {editingPropertyId ? 'Editar Inmueble' : 'Nuevo Inmueble'}
                   </h2>
                 </div>
                 {formData.nombre && (() => {
                   const tempMetrics = calculateMetrics(formData);
-                  const score = getPropertyScore(formData, tempMetrics);
+                  const score = getPropertyScore(formData, tempMetrics, zonesConfig);
                   return (
                     <div className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${score.color}`} title={`Calidad estimada: ${score.label} (${score.points} pts)`}>
                       Score: {score.grade}
@@ -778,7 +965,7 @@ export default function App() {
               <form onSubmit={handleAddProperty} className="p-6 space-y-4">
                 
                 {/* NUEVO: INPUT MAGICO DE IDEALISTA O PEGAR HTML */}
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-2">
+                <div className="border-glowing-gradient p-4 rounded-xl space-y-2.5 shadow-lg shadow-emerald-500/5 bg-slate-950/40">
                   {!showHtmlPaste ? (
                     <>
                       <div className="flex gap-2">
@@ -787,15 +974,15 @@ export default function App() {
                             type="url"
                             value={idealistaUrl}
                             onChange={(e) => setIdealistaUrl(e.target.value)}
-                            placeholder="Pega aquí el enlace de Idealista..."
-                            className="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border bg-white placeholder:text-blue-300"
+                            placeholder="Pega aquí enlace de Idealista..."
+                            className="w-full rounded-lg border-slate-850 focus:border-emerald-500 focus:ring-emerald-500/20 text-sm px-3 py-1.8 border bg-slate-950 text-slate-100 placeholder:text-slate-600 focus:outline-none"
                           />
                         </div>
                         <button
                           type="button"
                           onClick={handleScrapeUrl}
                           disabled={isScraping || idealistaUrl.length === 0}
-                          className="flex-none flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="flex-none flex justify-center items-center px-3.5 py-2 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
                           title="Autocompletar datos"
                         >
                           {isScraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link className="h-4 w-4" />}
@@ -805,21 +992,21 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setShowHtmlPaste(true)}
-                          className="text-[11px] text-blue-600 hover:text-blue-800 underline focus:outline-none"
+                          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold hover:underline focus:outline-none transition-colors"
                         >
                           O pegar código HTML del anuncio
                         </button>
                       </div>
                     </>
                   ) : (
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-blue-700">Código fuente HTML del anuncio:</label>
+                    <div className="space-y-2.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">Código fuente HTML del anuncio:</label>
                       <textarea
                         value={rawHtmlText}
                         onChange={(e) => setRawHtmlText(e.target.value)}
                         placeholder="Pega aquí todo el código HTML (Ver código fuente / Ctrl+U)..."
                         rows={4}
-                        className="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-[11px] font-mono px-3 py-2 border bg-white placeholder:text-blue-300"
+                        className="w-full rounded-lg border-slate-850 focus:border-emerald-500 focus:ring-emerald-500/20 text-[10px] font-mono px-3 py-2 border bg-slate-950 text-slate-100 placeholder:text-slate-650 focus:outline-none"
                       />
                       <div className="flex justify-between items-center">
                         <button
@@ -828,7 +1015,7 @@ export default function App() {
                             setShowHtmlPaste(false);
                             setRawHtmlText('');
                           }}
-                          className="text-xs text-slate-500 hover:text-slate-700 focus:outline-none"
+                          className="text-xs text-slate-400 hover:text-slate-200 font-medium focus:outline-none transition-colors"
                         >
                           Cancelar
                         </button>
@@ -836,57 +1023,66 @@ export default function App() {
                           type="button"
                           onClick={handleParseHtml}
                           disabled={isScraping || !rawHtmlText.trim()}
-                          className="flex justify-center items-center px-4 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="flex justify-center items-center px-3.5 py-1.5 border border-transparent rounded-lg shadow-md text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
                         >
-                          {isScraping ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Extraer Datos
+                          {isScraping ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : null} Extraer Datos
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-slate-200"></div>
-                  <span className="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">o rellena manualmente</span>
-                  <div className="flex-grow border-t border-slate-200"></div>
+                <div className="relative flex items-center py-1.5">
+                  <div className="flex-grow border-t border-slate-800/80"></div>
+                  <span className="flex-shrink-0 mx-3 text-slate-500 text-[9px] font-bold uppercase tracking-wider">o rellena manualmente</span>
+                  <div className="flex-grow border-t border-slate-800/80"></div>
                 </div>
 
                 {/* Inputs Básicos */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Nombre / Referencia</label>
-                  <input required type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border" placeholder="Ej: Piso Centro..." />
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Nombre / Referencia</label>
+                  <input required type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 placeholder-slate-650 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all" placeholder="Ej: Piso Centro..." />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Zona</label>
-                    <select name="zona" value={formData.zona} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border bg-white">
-                      {Object.keys(ZONAS_CONFIG).map(z => <option key={z} value={z}>{ZONAS_CONFIG[z].name}</option>)}
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Zona</label>
+                    <select name="zona" value={formData.zona} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all">
+                      {customZones.length > 0 && (
+                        <optgroup label="Zonas Personalizadas" className="bg-slate-950 text-slate-300">
+                          {customZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                        </optgroup>
+                      )}
+                      <optgroup label="Provincias (Predeterminadas)" className="bg-slate-950 text-slate-300">
+                        {Object.keys(provinciasDefault).map(z => (
+                          <option key={z} value={z}>{zonesConfig[z]?.name || z}</option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Planta</label>
-                    <select name="planta" value={formData.planta} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border bg-white">
-                      {PLANTAS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Planta</label>
+                    <select name="planta" value={formData.planta} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all">
+                      {PLANTAS.map(p => <option key={p.id} value={p.id} className="bg-slate-950">{p.label}</option>)}
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Superficie (m²)</label>
-                    <input required type="number" name="m2" value={formData.m2} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Superficie (m²)</label>
+                    <input required type="number" name="m2" value={formData.m2} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Precio Compra (€)</label>
-                    <input required type="number" name="precio" value={formData.precio} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
-                    {formData.m2 > 0 && ZONAS_CONFIG[formData.zona] && (() => {
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Precio Compra (€)</label>
+                    <input required type="number" name="precio" value={formData.precio} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-sm px-3 py-1.8 border focus:outline-none transition-all" />
+                    {formData.m2 > 0 && zonesConfig[formData.zona] && (() => {
                       const priceM2 = Math.round(formData.precio / formData.m2);
-                      const avg = ZONAS_CONFIG[formData.zona].avgPriceM2;
+                      const avg = zonesConfig[formData.zona].avgPriceM2;
                       const diff = Math.round(((priceM2 - avg) / avg) * 100);
                       const isBelow = diff <= 0;
                       return (
-                        <div className={`text-[10px] mt-1 font-semibold leading-tight ${isBelow ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        <div className={`text-[10px] mt-1 font-bold leading-tight ${isBelow ? 'text-emerald-400' : 'text-amber-400'}`}>
                           {priceM2} €/m² ({isBelow ? `🟢 ${diff}%` : `🟡 +${diff}%`} vs media {avg} €)
                         </div>
                       );
@@ -895,36 +1091,36 @@ export default function App() {
                 </div>
 
                 {/* Gastos Adquisición */}
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adquisición</h3>
+                <div className="bg-slate-950/45 p-3.5 rounded-xl border border-slate-850/80 space-y-3">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Adquisición</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">ITP (%)</label>
-                      <input required type="number" step="0.1" name="itp" value={formData.itp} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">ITP (%)</label>
+                      <input required type="number" step="0.1" name="itp" value={formData.itp} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Reforma (€)</label>
-                      <input required type="number" name="reforma" value={formData.reforma} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Reforma (€)</label>
+                      <input required type="number" name="reforma" value={formData.reforma} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
                     </div>
                   </div>
                 </div>
 
                 {/* Ingresos y Gastos Corrientes */}
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Operativa</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Alquiler Mes (€)</label>
-                      <input required type="number" name="alquiler" value={formData.alquiler} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
-                      {formData.m2 > 0 && ZONAS_CONFIG[formData.zona] && (() => {
-                        const suggested = Math.round(formData.m2 * ZONAS_CONFIG[formData.zona].avgRentPriceM2);
+                <div className="bg-slate-950/45 p-3.5 rounded-xl border border-slate-850/80 space-y-3">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operativa</h3>
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Alquiler Mes (€)</label>
+                      <input required type="number" name="alquiler" value={formData.alquiler} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
+                      {formData.m2 > 0 && zonesConfig[formData.zona] && (() => {
+                        const suggested = Math.round(formData.m2 * zonesConfig[formData.zona].avgRentPriceM2);
                         return (
-                          <div className="text-[10px] text-blue-600 mt-1.5 flex justify-between items-center font-medium leading-none">
+                          <div className="text-[10px] text-blue-400 mt-1.5 flex justify-between items-center font-medium leading-none">
                             <span>💡 Sugerido: ~{suggested} €</span>
                             <button
                               type="button"
                               onClick={() => setFormData(prev => ({ ...prev, alquiler: suggested }))}
-                              className="text-[9px] bg-blue-50 text-blue-700 px-1 py-0.5 rounded hover:bg-blue-100 border border-blue-200 transition-colors font-bold uppercase"
+                              className="text-[9px] bg-blue-950/40 text-blue-450 px-1.5 py-0.5 rounded hover:bg-blue-900/40 border border-blue-900/50 transition-all font-bold uppercase cursor-pointer"
                             >
                               Aplicar
                             </button>
@@ -933,38 +1129,38 @@ export default function App() {
                       })()}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Comunidad/mes</label>
-                      <input required type="number" name="comunidad" value={formData.comunidad} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Comunidad/mes</label>
+                      <input required type="number" name="comunidad" value={formData.comunidad} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">IBI Anual (€)</label>
-                      <input required type="number" name="ibi" value={formData.ibi} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">IBI Anual (€)</label>
+                      <input required type="number" name="ibi" value={formData.ibi} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Seguro Anual (€)</label>
-                      <input required type="number" name="seguro" value={formData.seguro} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm" />
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Seguro Anual (€)</label>
+                      <input required type="number" name="seguro" value={formData.seguro} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all" />
                     </div>
                   </div>
                 </div>
 
                 {/* Financiación (Si no hay global) */}
-                <div className={`p-3 rounded-lg border ${globalMortgage.active ? 'bg-slate-200 border-slate-300 opacity-60' : 'bg-slate-50 border-slate-100'} space-y-3`}>
+                <div className={`p-3.5 rounded-xl border transition-all duration-200 ${globalMortgage.active ? 'bg-slate-950/20 border-slate-900 opacity-40' : 'bg-slate-950/45 border-slate-850/80'} space-y-3`}>
                   <div className="flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Hipoteca (80%)</h3>
-                    {globalMortgage.active && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Simulación Global Activa</span>}
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hipoteca (80%)</h3>
+                    {globalMortgage.active && <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Global Activa</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">TIN (%)</label>
-                      <input disabled={globalMortgage.active} required type="number" step="0.1" name="tin" value={formData.tin} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm disabled:bg-slate-100" />
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">TIN (%)</label>
+                      <input disabled={globalMortgage.active} required type="number" step="0.1" name="tin" value={formData.tin} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all disabled:opacity-40" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Plazo (Años)</label>
-                      <select disabled={globalMortgage.active} name="plazo" value={formData.plazo} onChange={handleInputChange} className="w-full rounded-md border-slate-300 shadow-sm px-3 py-2 border text-sm bg-white disabled:bg-slate-100">
-                        <option value={15}>15 años</option>
-                        <option value={20}>20 años</option>
-                        <option value={25}>25 años</option>
-                        <option value={30}>30 años</option>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Plazo (Años)</label>
+                      <select disabled={globalMortgage.active} name="plazo" value={formData.plazo} onChange={handleInputChange} className="w-full rounded-lg border-slate-850 bg-slate-950 text-slate-100 focus:border-blue-500 focus:ring-blue-500/20 text-xs px-2.5 py-1.5 border focus:outline-none transition-all disabled:opacity-40 bg-slate-950">
+                        <option value={15} className="bg-slate-950">15 años</option>
+                        <option value={20} className="bg-slate-950">20 años</option>
+                        <option value={25} className="bg-slate-950">25 años</option>
+                        <option value={30} className="bg-slate-950">30 años</option>
                       </select>
                     </div>
                   </div>
@@ -972,10 +1168,10 @@ export default function App() {
 
                 {/* Validaciones Visuales */}
                 {formWarnings.length > 0 && (
-                  <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-md">
+                  <div className="bg-amber-500/5 border-l-3 border-amber-500 p-3.5 rounded-r-xl">
                     <div className="flex items-start">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 mr-2 mt-0.5 shrink-0" />
-                      <ul className="text-xs text-amber-700 space-y-1">
+                      <AlertTriangle className="h-4 w-4 text-amber-450 mr-2 mt-0.5 shrink-0" />
+                      <ul className="text-xs text-amber-300 space-y-1">
                         {formWarnings.map((w, i) => <li key={i}>{w}</li>)}
                       </ul>
                     </div>
@@ -983,10 +1179,10 @@ export default function App() {
                 )}
 
                 {formErrors.length > 0 && (
-                  <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-r-md">
+                  <div className="bg-red-500/5 border-l-3 border-red-500 p-3.5 rounded-r-xl">
                     <div className="flex items-start">
-                      <AlertTriangle className="h-4 w-4 text-red-600 mr-2 mt-0.5 shrink-0" />
-                      <ul className="text-xs text-red-700 font-medium space-y-1">
+                      <AlertTriangle className="h-4 w-4 text-red-400 mr-2 mt-0.5 shrink-0" />
+                      <ul className="text-xs text-red-350 font-semibold space-y-1">
                         {formErrors.map((e, i) => <li key={i}>{e}</li>)}
                       </ul>
                     </div>
@@ -998,23 +1194,23 @@ export default function App() {
                     <button 
                       type="button" 
                       onClick={handleCancelEdit}
-                      className="flex justify-center items-center py-2 px-3 border border-slate-300 hover:bg-slate-50 rounded-md text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                      className="flex justify-center items-center py-2.2 px-3 border border-slate-800 bg-slate-900 text-slate-350 hover:bg-slate-850 hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
                     >
                       Cancelar
                     </button>
                     <button 
                       type="submit" 
                       disabled={formErrors.length > 0}
-                      className="flex justify-center items-center py-2 px-3 border border-transparent rounded-md shadow-sm text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      className="flex justify-center items-center py-2.2 px-3 border border-transparent rounded-lg shadow-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all cursor-pointer disabled:opacity-50"
                     >
-                      <CheckCircle className="h-3.5 w-3.5 mr-1" /> Guardar
+                      <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Guardar
                     </button>
                   </div>
                 ) : (
                   <button 
                     type="submit" 
                     disabled={formErrors.length > 0}
-                    className="w-full mt-4 flex justify-center items-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full mt-4 flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-indigo-500/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
                   >
                     <Plus className="h-4 w-4 mr-2" /> Añadir Inmueble
                   </button>
@@ -1027,192 +1223,186 @@ export default function App() {
           <div className="flex-1 space-y-6 overflow-hidden">
             
             {/* Panel de Stress Test Hipotecario */}
-            <div className={`rounded-xl border transition-all duration-300 overflow-hidden ${globalMortgage.active ? 'bg-amber-50 border-amber-200 shadow-md' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100">
+            <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${globalMortgage.active ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.08)]' : 'bg-slate-900/40 border-slate-850/80 shadow-md'}`}>
+              <div className="px-6 py-4 flex items-center justify-between border-b border-slate-850">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${globalMortgage.active ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+                  <div className={`p-2 rounded-lg ${globalMortgage.active ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-450 border border-slate-700/50'}`}>
                     <Calculator className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-slate-800">Simulación Global de Hipoteca</h3>
-                    <p className="text-xs text-slate-500">Aplica un TIN y Plazo a toda la cartera para ver el impacto en el Cash Flow</p>
+                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Simulación Global de Hipoteca</h3>
+                    <p className="text-xs text-slate-450 mt-0.5">Aplica un TIN y Plazo a toda la cartera para ver el impacto en el Cash Flow</p>
                   </div>
                 </div>
                 <label className="flex items-center cursor-pointer">
                   <div className="relative">
                     <input type="checkbox" className="sr-only" checked={globalMortgage.active} onChange={() => setGlobalMortgage(p => ({...p, active: !p.active}))} />
-                    <div className={`block w-10 h-6 rounded-full transition-colors ${globalMortgage.active ? 'bg-amber-500' : 'bg-slate-300'}`}></div>
-                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${globalMortgage.active ? 'transform translate-x-4' : ''}`}></div>
+                    <div className={`block w-10 h-5.5 rounded-full transition-colors ${globalMortgage.active ? 'bg-amber-500 shadow-glow-amber' : 'bg-slate-800'}`}></div>
+                    <div className={`dot absolute left-0.8 top-0.8 bg-white w-4 h-4 rounded-full transition-transform ${globalMortgage.active ? 'transform translate-x-4.5' : ''}`}></div>
                   </div>
-                  <span className="ml-3 text-sm font-medium text-slate-700">{globalMortgage.active ? 'Activo' : 'Inactivo'}</span>
+                  <span className="ml-3 text-xs font-bold uppercase tracking-wider text-slate-350">{globalMortgage.active ? 'Activo' : 'Inactivo'}</span>
                 </label>
               </div>
 
               {globalMortgage.active && (
-                <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/50">
+                <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-950/20">
                   <div>
-                    <div className="flex justify-between mb-1">
-                      <label className="text-sm font-medium text-slate-700">Tipo de Interés (TIN)</label>
-                      <span className="text-sm font-bold text-amber-600">{globalMortgage.tin}%</span>
+                    <div className="flex justify-between mb-1.5 items-center">
+                      <label className="text-xs font-semibold text-slate-400">Tipo de Interés (TIN)</label>
+                      <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{globalMortgage.tin}%</span>
                     </div>
-                    <input type="range" min="1" max="8" step="0.1" value={globalMortgage.tin} onChange={(e) => setGlobalMortgage(p => ({...p, tin: Number(e.target.value)}))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                    <input type="range" min="1" max="8" step="0.1" value={globalMortgage.tin} onChange={(e) => setGlobalMortgage(p => ({...p, tin: Number(e.target.value)}))} className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-amber-500" />
                   </div>
                   <div>
-                    <div className="flex justify-between mb-1">
-                      <label className="text-sm font-medium text-slate-700">Plazo Amortización</label>
-                      <span className="text-sm font-bold text-amber-600">{globalMortgage.plazo} años</span>
+                    <div className="flex justify-between mb-1.5 items-center">
+                      <label className="text-xs font-semibold text-slate-400">Plazo Amortización</label>
+                      <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{globalMortgage.plazo} años</span>
                     </div>
-                    <input type="range" min="10" max="40" step="5" value={globalMortgage.plazo} onChange={(e) => setGlobalMortgage(p => ({...p, plazo: Number(e.target.value)}))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                    <input type="range" min="10" max="40" step="5" value={globalMortgage.plazo} onChange={(e) => setGlobalMortgage(p => ({...p, plazo: Number(e.target.value)}))} className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-amber-500" />
                   </div>
                 </div>
               )}
             </div>
 
             {/* Tabla Dinámica */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-slate-900/30 border border-slate-850/80 rounded-2xl shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
+                <table className="min-w-full divide-y divide-slate-850/60">
+                  <thead className="bg-slate-900/60">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Inmueble</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Compra</th>
+                      <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-450 uppercase tracking-wider">Inmueble</th>
+                      <th className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider">Compra</th>
                       <th 
-                        className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 group transition-colors"
+                        className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 hover:text-white group transition-all"
                         onClick={() => requestSort('reforma')}
                       >
                          <div className="flex items-center justify-end gap-1">
-                          Reforma <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          Reforma <ArrowUpDown className="h-3 w-3 opacity-30 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Cap. Aportado</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Cuota Hip.</th>
+                      <th className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider">Cap. Aportado</th>
+                      <th className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider">Cuota Hip.</th>
                       <th 
-                        className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 group transition-colors"
+                        className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 hover:text-white group transition-all"
                         onClick={() => requestSort('cashFlowMensual')}
                       >
-                        <div className="flex items-center justify-end gap-1">
-                          Cash Flow /mes <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                         <div className="flex items-center justify-end gap-1">
+                          Cash Flow <ArrowUpDown className="h-3 w-3 opacity-30 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </th>
                       <th 
-                        className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 group transition-colors"
+                        className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 hover:text-white group transition-all"
                         onClick={() => requestSort('rentabilidadBruta')}
                       >
                          <div className="flex items-center justify-end gap-1">
-                          Rent. Bruta <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          R. Bruta <ArrowUpDown className="h-3 w-3 opacity-30 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </th>
                       <th 
-                        className="px-4 py-3 text-right text-xs font-medium text-blue-600 uppercase tracking-wider cursor-pointer hover:bg-blue-50 group transition-colors"
+                        className="px-4 py-3.5 text-right text-xs font-bold text-emerald-400 uppercase tracking-wider cursor-pointer hover:bg-emerald-950/20 group transition-all"
                         onClick={() => requestSort('rentabilidadNeta')}
                       >
                         <div className="flex items-center justify-end gap-1">
-                          ROE (Neta) <ArrowUpDown className="h-3 w-3 text-blue-400 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          ROE (Neta) <ArrowUpDown className="h-3 w-3 text-emerald-400/65 opacity-50 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
+                      <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-450 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-slate-200">
+                  <tbody className="bg-slate-900/10 divide-y divide-slate-850/50">
                     {sortedProperties.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
-                          <Building className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                          <p>No hay inmuebles en la cartera.</p>
-                          <p className="text-sm">Añade uno desde el formulario lateral.</p>
+                        <td colSpan={9} className="px-6 py-16 text-center text-slate-500">
+                          <Building className="mx-auto h-12 w-12 text-slate-700 mb-3" />
+                          <p className="font-semibold text-slate-450">No hay inmuebles en la cartera.</p>
+                          <p className="text-xs text-slate-650 mt-1">Añade uno usando el panel lateral o pega un enlace de Idealista.</p>
                         </td>
                       </tr>
                     ) : (
                       sortedProperties.map((prop) => {
                         const m = prop.metrics;
-                        const score = getPropertyScore(prop, m);
+                        const score = getPropertyScore(prop, m, zonesConfig);
                         const isExpanded = expandedPropertyId === prop.id;
                         
                         // Determinación de colores del Cash Flow
-                        let cfColor = "text-red-600 font-bold bg-red-50";
-                        if (m.cashFlowMensual >= 0 && m.cashFlowMensual < 100) cfColor = "text-amber-500 font-bold bg-amber-50";
-                        if (m.cashFlowMensual >= 100) cfColor = "text-green-600 font-bold bg-green-50";
+                        let cfColor = "text-red-400 font-bold bg-red-500/10 border border-red-500/20";
+                        if (m.cashFlowMensual >= 0 && m.cashFlowMensual < 100) cfColor = "text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20";
+                        if (m.cashFlowMensual >= 100) cfColor = "text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 shadow-glow-emerald";
  
                         return (
                           <React.Fragment key={prop.id}>
                             <tr 
-                              className={`hover:bg-slate-50 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-50/80 border-l-4 border-blue-500 font-medium' : ''}`}
+                              className={`hover:bg-slate-850/50 border-b border-slate-850/60 transition-all cursor-pointer ${isExpanded ? 'bg-slate-850/35 border-l-3 border-emerald-500 font-medium' : ''}`}
                               onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
                             >
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3.5">
                                 <div className="flex items-center gap-2">
-                                  <div className="text-sm font-semibold text-slate-900">{prop.nombre}</div>
-                                  <span className={`inline-block px-1.5 py-0.2 text-[9px] font-bold rounded border ${score.color}`} title={`Calidad: ${score.label} (${score.points} pts)`}>
+                                  <div className="text-sm font-bold text-slate-100">{prop.nombre}</div>
+                                  <span className={`inline-block px-1.8 py-0.2 text-[9px] font-extrabold rounded border ${score.color}`} title={`Calidad: ${score.label} (${score.points} pts)`}>
                                     {score.grade}
                                   </span>
                                 </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                  <MapPin className="h-3 w-3" /> {ZONAS_CONFIG[prop.zona]?.name || prop.zona} • {prop.planta}
+                                <div className="text-xs text-slate-450 flex items-center gap-1.5 mt-1 font-medium">
+                                  <MapPin className="h-3 w-3 text-slate-550" /> {zonesConfig[prop.zona]?.name || prop.zona} • {prop.planta}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right text-sm text-slate-700 whitespace-nowrap">
+                              <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
                                 {formatCurrency(prop.precio)}
                               </td>
-                              <td className="px-4 py-3 text-right text-sm text-slate-700 whitespace-nowrap">
+                              <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
                                 {prop.reforma > 0 ? (
-                                  <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded font-medium border border-amber-100/50">
+                                  <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-bold border border-amber-500/20">
                                     {formatCurrency(prop.reforma)}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-400 font-normal italic">
+                                  <span className="text-slate-600 font-normal italic text-xs">
                                     Sin reforma
                                   </span>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-right text-sm text-slate-700 whitespace-nowrap">
+                              <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
                                 {formatCurrency(m.capitalAportadoTotal)}
-                                <div className="text-[10px] text-slate-400">Inc. {formatCurrency(m.gastosAdquisicion)} gastos</div>
+                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">Inc. {formatCurrency(m.gastosAdquisicion)} gastos</div>
                               </td>
-                              <td className="px-4 py-3 text-right text-sm text-slate-700 whitespace-nowrap">
+                              <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
                                 {formatCurrency(m.cuotaMensual)}
-                                <div className="text-[10px] text-slate-400">
+                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
                                   {globalMortgage.active ? (
-                                    <span className="text-amber-600">Sim. {globalMortgage.tin}%</span>
+                                    <span className="text-amber-450 font-semibold">Sim. {globalMortgage.tin}%</span>
                                   ) : (
                                     <span>{prop.tin}% / {prop.plazo}y</span>
                                   )}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm ${cfColor}`}>
+                              <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.8 rounded-md text-xs font-bold ${cfColor}`}>
                                   {formatCurrency(m.cashFlowMensual)}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-right text-sm text-slate-700 whitespace-nowrap">
+                              <td className="px-4 py-3.5 text-right text-sm text-slate-300 font-semibold whitespace-nowrap">
                                 {formatPercent(m.rentabilidadBruta)}
                               </td>
-                              <td className="px-4 py-3 text-right text-sm whitespace-nowrap">
-                                <span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                              <td className="px-4 py-3.5 text-right text-sm whitespace-nowrap">
+                                <span className="font-bold text-emerald-450 bg-emerald-500/10 px-2.2 py-0.8 rounded border border-emerald-500/20 shadow-glow-emerald">
                                   {formatPercent(m.rentabilidadNeta)}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-center whitespace-nowrap">
-                                <div className="flex justify-center items-center gap-1.5">
+                              <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                                <div className="flex justify-center items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEdit(prop);
-                                    }}
-                                    className={`transition-colors p-1 rounded ${
+                                    onClick={() => handleEdit(prop)}
+                                    className={`transition-all p-1.5 rounded-lg ${
                                       editingPropertyId === prop.id 
-                                        ? 'text-blue-500 bg-blue-50' 
-                                        : 'text-slate-400 hover:text-blue-500 hover:bg-slate-50'
+                                        ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
+                                        : 'text-slate-450 hover:text-emerald-400 hover:bg-slate-800'
                                     }`}
                                     title="Editar inmueble"
                                   >
                                     <Edit className="h-4 w-4" />
                                   </button>
                                   <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(prop.id);
-                                    }}
-                                    className="text-slate-400 hover:text-red-500 hover:bg-slate-50 transition-colors p-1 rounded"
+                                    onClick={() => handleDelete(prop.id)}
+                                    className="text-slate-450 hover:text-red-400 hover:bg-slate-800 p-1.5 rounded-lg transition-all"
                                     title="Eliminar inmueble"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1221,48 +1411,48 @@ export default function App() {
                               </td>
                             </tr>
                             {isExpanded && (
-                              <tr className="bg-slate-50/50">
-                                <td colSpan={9} className="px-6 py-5 border-t border-b border-slate-200/80 shadow-inner">
+                              <tr className="bg-slate-950/40">
+                                <td colSpan={9} className="px-6 py-5 border-t border-b border-slate-850/80 shadow-inner">
                                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     
                                     {/* Desglose de Gastos */}
-                                    <div className="space-y-3">
-                                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desglose de Costes Iniciales</h4>
-                                      <div className="bg-white rounded-lg border border-slate-200 p-3.5 space-y-2 text-xs">
-                                        <div className="flex justify-between text-slate-600">
+                                    <div className="space-y-3 animate-slide-up">
+                                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Desglose de Costes Iniciales</h4>
+                                      <div className="bg-slate-900/80 rounded-xl border border-slate-850 p-4 space-y-2.5 text-xs shadow-md">
+                                        <div className="flex justify-between text-slate-400">
                                           <span>Entrada Aportada (20%):</span>
-                                          <span className="font-semibold">{formatCurrency(prop.precio * 0.2)}</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.precio * 0.2)}</span>
                                         </div>
-                                        <div className="flex justify-between text-slate-600">
+                                        <div className="flex justify-between text-slate-400">
                                           <span>Impuesto ITP ({prop.itp}%):</span>
-                                          <span className="font-semibold">{formatCurrency(prop.precio * (prop.itp / 100))}</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.precio * (prop.itp / 100))}</span>
                                         </div>
-                                        <div className="flex justify-between text-slate-600">
+                                        <div className="flex justify-between text-slate-400">
                                           <span>Notaría, Registro y Gestoría:</span>
-                                          <span className="font-semibold">{formatCurrency(2000)}</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(2000)}</span>
                                         </div>
-                                        <div className="flex justify-between text-slate-600">
+                                        <div className="flex justify-between text-slate-400">
                                           <span>Reforma Estimada:</span>
-                                          <span className="font-semibold">{formatCurrency(prop.reforma)}</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.reforma)}</span>
                                         </div>
-                                        <div className="border-t border-slate-100 my-1.5 pt-1.5 flex justify-between font-bold text-slate-800">
+                                        <div className="border-t border-slate-800/85 my-1.5 pt-2 flex justify-between font-extrabold text-slate-100">
                                           <span>Capital Aportado Total:</span>
-                                          <span className="text-blue-600">{formatCurrency(m.capitalAportadoTotal)}</span>
+                                          <span className="text-emerald-400">{formatCurrency(m.capitalAportadoTotal)}</span>
                                         </div>
                                       </div>
                                     </div>
-
+ 
                                     {/* Sliders Interactivos */}
-                                    <div className="space-y-4 lg:col-span-2">
-                                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Simulador Rápido (Modificar Inmueble)</h4>
+                                    <div className="space-y-4 lg:col-span-2 animate-slide-up">
+                                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Simulador Rápido (Modificar Inmueble)</h4>
                                       
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white rounded-lg border border-slate-200 p-4">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/80 rounded-xl border border-slate-850 p-4 shadow-md">
                                         
                                         {/* Slider 1: Alquiler */}
                                         <div className="space-y-2">
-                                          <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-slate-600">Alquiler Estimado:</span>
-                                            <span className="font-bold text-blue-600">{formatCurrency(prop.alquiler)}/mes</span>
+                                          <div className="flex justify-between text-xs font-semibold">
+                                            <span className="text-slate-400">Alquiler Estimado:</span>
+                                            <span className="font-bold text-blue-400">{formatCurrency(prop.alquiler)}/mes</span>
                                           </div>
                                           <input 
                                             type="range" 
@@ -1271,25 +1461,25 @@ export default function App() {
                                             step={10} 
                                             value={prop.alquiler} 
                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))} 
-                                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" 
+                                            className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500" 
                                           />
-                                          {ZONAS_CONFIG[prop.zona] && (
-                                            <div className="text-[10px] text-slate-400 flex justify-between">
-                                              <span>Mín (50%): {formatCurrency(Math.round(prop.alquiler * 0.5))}</span>
-                                              <span>Media Zona: ~{Math.round(prop.m2 * ZONAS_CONFIG[prop.zona].avgRentPriceM2)} €</span>
-                                              <span>Máx (150%): {formatCurrency(Math.round(prop.alquiler * 1.5))}</span>
+                                          {zonesConfig[prop.zona] && (
+                                            <div className="text-[9px] text-slate-500 flex justify-between font-medium">
+                                              <span>Mín: {formatCurrency(Math.round(prop.alquiler * 0.5))}</span>
+                                              <span>Media: ~{Math.round(prop.m2 * zonesConfig[prop.zona].avgRentPriceM2)} €</span>
+                                              <span>Máx: {formatCurrency(Math.round(prop.alquiler * 1.5))}</span>
                                             </div>
                                           )}
                                         </div>
-
+ 
                                         {/* Slider 2: TIN */}
                                         <div className="space-y-2">
-                                          <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-slate-600">Interés Hipoteca (TIN):</span>
+                                          <div className="flex justify-between text-xs font-semibold">
+                                            <span className="text-slate-400">Interés Hipoteca (TIN):</span>
                                             {globalMortgage.active ? (
-                                              <span className="font-bold text-amber-600">Fijado Global ({globalMortgage.tin}%)</span>
+                                              <span className="font-bold text-amber-400">Fijado Global ({globalMortgage.tin}%)</span>
                                             ) : (
-                                              <span className="font-bold text-blue-600">{prop.tin}%</span>
+                                              <span className="font-bold text-blue-400">{prop.tin}%</span>
                                             )}
                                           </div>
                                           <input 
@@ -1300,41 +1490,41 @@ export default function App() {
                                             disabled={globalMortgage.active}
                                             value={globalMortgage.active ? globalMortgage.tin : prop.tin} 
                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'tin', Number(e.target.value))} 
-                                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-50 disabled:cursor-not-allowed" 
+                                            className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-30 disabled:cursor-not-allowed" 
                                           />
-                                          <div className="text-[10px] text-slate-400 flex justify-between">
+                                          <div className="text-[9px] text-slate-500 flex justify-between font-medium">
                                             <span>Mín: 0.5%</span>
                                             <span>Plazo: {prop.plazo} años</span>
                                             <span>Máx: 8%</span>
                                           </div>
                                         </div>
-
+ 
                                       </div>
-
+ 
                                       {/* Métricas rápidas de impacto */}
                                       <div className="grid grid-cols-3 gap-3 text-center">
-                                        <div className="bg-white border border-slate-200 rounded-lg p-2 shadow-sm">
-                                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Cash Flow</span>
-                                          <span className={`text-xs font-bold ${m.cashFlowMensual >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        <div className="bg-slate-950/60 border border-slate-850 rounded-xl p-3 shadow-md">
+                                          <span className="block text-[9px] font-bold text-slate-500 uppercase">Cash Flow</span>
+                                          <span className={`text-xs font-bold ${m.cashFlowMensual >= 0 ? 'text-emerald-450' : 'text-red-405'}`}>
                                             {formatCurrency(m.cashFlowMensual)}
                                           </span>
                                         </div>
-                                        <div className="bg-white border border-slate-200 rounded-lg p-2 shadow-sm">
-                                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Rent. Bruta</span>
-                                          <span className="text-xs font-bold text-slate-700">
+                                        <div className="bg-slate-950/60 border border-slate-850 rounded-xl p-3 shadow-md">
+                                          <span className="block text-[9px] font-bold text-slate-500 uppercase">Rent. Bruta</span>
+                                          <span className="text-xs font-bold text-slate-200">
                                             {formatPercent(m.rentabilidadBruta)}
                                           </span>
                                         </div>
-                                        <div className="bg-white border border-slate-200 rounded-lg p-2 shadow-sm">
-                                          <span className="block text-[9px] font-bold text-slate-400 uppercase">ROE (Neta)</span>
-                                          <span className="text-xs font-bold text-blue-600 font-semibold bg-blue-50/50 rounded px-1">
+                                        <div className="bg-slate-950/60 border border-slate-850 rounded-xl p-3 shadow-md">
+                                          <span className="block text-[9px] font-bold text-slate-500 uppercase">ROE (Neta)</span>
+                                          <span className="text-xs font-bold text-emerald-450 bg-emerald-500/10 rounded-md px-1.5 py-0.5 border border-emerald-500/20 shadow-glow-emerald">
                                             {formatPercent(m.rentabilidadNeta)}
                                           </span>
                                         </div>
                                       </div>
-
+ 
                                     </div>
-
+ 
                                   </div>
                                 </td>
                               </tr>
@@ -1350,44 +1540,44 @@ export default function App() {
 
             {/* Resumen Global Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center">
-                  <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-                    <Building className="h-6 w-6" />
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+                  <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-glow-blue mr-4 shrink-0">
+                    <Building className="h-5.5 w-5.5" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Inmuebles</p>
-                    <p className="text-2xl font-bold text-slate-800">{properties.length}</p>
+                    <p className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Total Inmuebles</p>
+                    <p className="text-xl font-extrabold text-slate-100 mt-1">{properties.length}</p>
                   </div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center">
-                  <div className="p-3 rounded-full bg-indigo-100 text-indigo-600 mr-4">
-                    <Euro className="h-6 w-6" />
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-glow-emerald mr-4 shrink-0">
+                    <Euro className="h-5.5 w-5.5" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Capital Total Aportado</p>
-                    <p className="text-2xl font-bold text-slate-800">
+                    <p className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Cap. Total Aportado</p>
+                    <p className="text-xl font-extrabold text-slate-100 mt-1">
                       {formatCurrency(enrichedProperties.reduce((acc, curr) => acc + curr.metrics.capitalAportadoTotal, 0))}
                     </p>
                   </div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center">
-                  <div className="p-3 rounded-full bg-amber-100 text-amber-600 mr-4">
-                    <Calculator className="h-6 w-6" />
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+                  <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-glow-amber mr-4 shrink-0">
+                    <Calculator className="h-5.5 w-5.5" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Reformas</p>
-                    <p className="text-2xl font-bold text-slate-800">
+                    <p className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Total Reformas</p>
+                    <p className="text-xl font-extrabold text-slate-100 mt-1">
                       {formatCurrency(properties.reduce((acc, curr) => acc + (curr.reforma || 0), 0))}
                     </p>
                   </div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center">
-                  <div className="p-3 rounded-full bg-green-100 text-green-600 mr-4">
-                    <TrendingUp className="h-6 w-6" />
+               <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-850/80 p-4.5 flex items-center shadow-lg">
+                  <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-glow-purple mr-4 shrink-0">
+                    <TrendingUp className="h-5.5 w-5.5" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Cash Flow Mensual Neto</p>
-                    <p className="text-2xl font-bold text-slate-800">
+                    <p className="text-[10px] text-slate-450 uppercase tracking-wider font-bold">Cash Flow Mensual Neto</p>
+                    <p className="text-xl font-extrabold text-slate-100 mt-1">
                       {formatCurrency(enrichedProperties.reduce((acc, curr) => acc + curr.metrics.cashFlowMensual, 0))}
                     </p>
                   </div>
@@ -1400,7 +1590,7 @@ export default function App() {
 
       {/* NOTIFICACIÓN FLOTANTE */}
       {notification && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] max-w-sm w-full bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-4 text-slate-100 flex items-start gap-3 animate-fade-in">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] max-w-sm w-full bg-slate-950/90 backdrop-blur-md border border-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-xl p-4 text-slate-100 flex items-start gap-3 animate-fade-in">
           <div className="p-1 rounded-full bg-blue-950/50 text-blue-400 mt-0.5 shrink-0">
             {notification.type === 'error' ? '⚠️' : '✅'}
           </div>
@@ -1410,21 +1600,21 @@ export default function App() {
           </div>
           <button 
             onClick={() => setNotification(null)}
-            className="text-slate-500 hover:text-slate-300 text-sm font-bold cursor-pointer"
+            className="text-slate-500 hover:text-slate-350 text-sm font-bold cursor-pointer transition-colors"
           >
             &times;
           </button>
         </div>
       )}
-
+ 
       {/* MODAL DE SINCRONIZACIÓN */}
       {showSyncModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden text-slate-100 animate-scale-up">
-            <div className="bg-slate-800/50 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-slate-100 animate-scale-up">
+            <div className="bg-slate-900/95 border-b border-slate-800/80 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Cloud className="h-5 w-5 text-blue-400 animate-pulse" />
-                <h3 className="font-semibold text-lg text-slate-100">Sincronización de Cartera</h3>
+                <h3 className="font-bold text-base text-slate-100">Sincronización de Cartera</h3>
               </div>
               <button 
                 onClick={() => setShowSyncModal(false)}
@@ -1434,54 +1624,54 @@ export default function App() {
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 bg-slate-900/60">
               {/* SECCIÓN A: ENLACE COMPARTIDO (100% GRATIS) */}
-              <div className="space-y-3 bg-slate-850/30 p-4 rounded-xl border border-slate-800">
-                <div className="flex items-center gap-2 text-blue-400">
+              <div className="space-y-3 bg-slate-950/45 p-4 rounded-xl border border-slate-850/80 shadow-md">
+                <div className="flex items-center gap-2 text-blue-400 font-semibold">
                   <Link className="h-4 w-4" />
-                  <h4 className="font-semibold text-sm">Opción A: Compartir por Enlace (Gratis)</h4>
+                  <h4 className="font-bold text-xs uppercase tracking-wider">Opción A: Compartir por Enlace (Gratis)</h4>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   Genera un enlace especial con todos tus inmuebles codificados. Envíatelo a tu móvil o ábrelo en otro navegador para importar tu cartera al instante.
                 </p>
                 <button
                   onClick={handleCopyShareLink}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-md font-bold"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md hover:shadow-indigo-500/15"
                 >
                   <Link className="h-4 w-4" />
                   Copiar Enlace de Sincronización
                 </button>
               </div>
-
+ 
               <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-800"></div>
-                <span className="flex-shrink mx-4 text-slate-650 text-[10px] font-bold tracking-wider uppercase">O bien</span>
-                <div className="flex-grow border-t border-slate-800"></div>
+                <div className="flex-grow border-t border-slate-850"></div>
+                <span className="flex-shrink mx-4 text-slate-600 text-[9px] font-bold tracking-wider uppercase">O bien</span>
+                <div className="flex-grow border-t border-slate-850"></div>
               </div>
-
+ 
               {/* SECCIÓN B: NUBE AUTOMÁTICA (VERCEL KV) */}
-              <div className="space-y-3 border border-slate-800/40 p-4 rounded-xl">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Cloud className="h-4 w-4" />
-                  <h4 className="font-semibold text-sm text-slate-300">Opción B: Sincronización Nube (Vercel KV)</h4>
+              <div className="space-y-3 bg-slate-950/25 p-4 rounded-xl border border-slate-850/65 shadow-md">
+                <div className="flex items-center gap-2 text-slate-400 font-semibold">
+                  <Cloud className="h-4 w-4 text-slate-450" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-350">Opción B: Sincronización Nube (Vercel KV)</h4>
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Requiere configurar Vercel KV en el panel del proyecto. Permite guardar y cargar carteras en tiempo real mediante un código de texto.
                 </p>
-
+ 
                 {syncMessage && (
                   <div className={`p-3 rounded-lg text-xs flex items-start gap-2 border ${
-                    syncMessage.type === 'error' ? 'bg-red-950/30 text-red-300 border-red-900/50' :
-                    syncMessage.type === 'success' ? 'bg-emerald-950/30 text-emerald-300 border-emerald-900/50' :
-                    'bg-blue-950/30 text-blue-300 border-blue-900/50'
+                    syncMessage.type === 'error' ? 'bg-red-950/30 text-red-305 border-red-900/50' :
+                    syncMessage.type === 'success' ? 'bg-emerald-950/30 text-emerald-305 border-emerald-900/50' :
+                    'bg-blue-950/30 text-blue-305 border-blue-900/50'
                   }`}>
-                    <div className="font-semibold shrink-0">
+                    <div className="font-bold shrink-0">
                       {syncMessage.type === 'error' ? '⚠️' : syncMessage.type === 'success' ? '✅' : 'ℹ️'}
                     </div>
-                    <div>{syncMessage.text}</div>
+                    <div className="font-medium leading-tight">{syncMessage.text}</div>
                   </div>
                 )}
-
+ 
                 <div className="space-y-1.5">
                   <div className="flex gap-2">
                     <input
@@ -1489,46 +1679,288 @@ export default function App() {
                       value={inputSyncCode}
                       onChange={(e) => setInputSyncCode(e.target.value)}
                       placeholder="Ej. mi-cartera-secreta"
-                      className="flex-1 px-3 py-1.5 border border-slate-800 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder-slate-650"
+                      className="flex-1 px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder-slate-650"
                       disabled={isSyncing}
                     />
                     <button
                       onClick={generateRandomCode}
-                      className="px-2.5 py-1.5 border border-slate-800 bg-slate-850 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                      className="px-2.5 py-1.8 border border-slate-850 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold transition-all cursor-pointer border hover:text-white"
                       disabled={isSyncing}
                     >
                       Generar
                     </button>
                   </div>
                 </div>
-
+ 
                 {syncCode && (
-                  <div className="text-[10px] text-slate-500 bg-slate-950/40 p-2 rounded border border-slate-850/50 flex justify-between">
-                    <span>Activo: <strong className="text-slate-400">{syncCode}</strong></span>
-                    <span>Modo: <strong className="text-slate-400">{cloudMode === 'cloud' ? '☁️ Vercel KV' : '💾 Servidor Local'}</strong></span>
+                  <div className="text-[10px] text-slate-550 bg-slate-950/50 p-2 rounded-lg border border-slate-850/50 flex justify-between font-semibold">
+                    <span>Activo: <strong className="text-slate-400 font-bold">{syncCode}</strong></span>
+                    <span>Modo: <strong className="text-slate-400 font-bold">{cloudMode === 'cloud' ? '☁️ Vercel KV' : '💾 Servidor Local'}</strong></span>
                   </div>
                 )}
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
+ 
+                <div className="grid grid-cols-2 gap-2 pt-1.5">
                   <button
                     onClick={() => handleLoadCloud(inputSyncCode)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-850 bg-slate-850 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-850 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
                     disabled={isSyncing || !inputSyncCode.trim()}
                   >
-                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-400" />}
-                    Cargar de Nube
+                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-500" />}
+                    Cargar
                   </button>
                   
                   <button
                     onClick={() => handleSaveCloud(inputSyncCode)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
                     disabled={isSyncing || !inputSyncCode.trim()}
                   >
                     {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <Cloud className="h-3.5 w-3.5 text-slate-400" />}
-                    Guardar en Nube
+                    Guardar
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+ 
+      {/* MODAL DE CONFIGURACIÓN DE ZONAS */}
+      {showZonesModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden text-slate-100 animate-scale-up max-h-[90vh] flex flex-col">
+            <div className="bg-slate-900 border-b border-slate-850 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Settings className="h-5 w-5 text-emerald-450" />
+                <h3 className="font-bold text-base text-slate-100">Configuración de Zonas de Análisis</h3>
+              </div>
+              <button 
+                onClick={() => setShowZonesModal(false)}
+                className="text-slate-400 hover:text-slate-200 transition-colors text-xl font-bold cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+ 
+            {/* Selector de pestañas */}
+            <div className="flex border-b border-slate-850 bg-slate-950/50 shrink-0">
+              <button
+                onClick={() => setZonesTab('custom')}
+                className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                  zonesTab === 'custom' 
+                    ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' 
+                    : 'border-transparent text-slate-450 hover:text-slate-200 hover:bg-slate-900/40'
+                }`}
+              >
+                Zonas Personalizadas (Barrios/Sub-zonas)
+              </button>
+              <button
+                onClick={() => setZonesTab('provinces')}
+                className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                  zonesTab === 'provinces' 
+                    ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' 
+                    : 'border-transparent text-slate-450 hover:text-slate-200 hover:bg-slate-900/40'
+                }`}
+              >
+                Medias Provinciales ({Object.keys(provinciasDefault).length - 1} Provincias)
+              </button>
+            </div>
+ 
+            {/* Contenido con scroll */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-900/20">
+              {zonesTab === 'custom' ? (
+                <>
+                  {/* Formulario para añadir nueva zona personalizada */}
+                  <form onSubmit={handleAddCustomZone} className="bg-slate-950/45 p-4.5 rounded-xl border border-slate-850/80 space-y-4">
+                    <h4 className="text-xs font-bold text-slate-350 uppercase tracking-wider">Añadir Nueva Zona</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                      <div className="md:col-span-2">
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nombre (ej: Segovia Centro)</label>
+                        <input
+                          required
+                          type="text"
+                          value={newZoneForm.name}
+                          onChange={(e) => setNewZoneForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Nombre de la zona..."
+                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder-slate-650 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Límite Venta (€)</label>
+                        <input
+                          required
+                          type="number"
+                          value={newZoneForm.limit}
+                          onChange={(e) => setNewZoneForm(prev => ({ ...prev, limit: Number(e.target.value) }))}
+                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Min m²</label>
+                        <input
+                          required
+                          type="number"
+                          value={newZoneForm.minM2}
+                          onChange={(e) => setNewZoneForm(prev => ({ ...prev, minM2: Number(e.target.value) }))}
+                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Venta €/m²</label>
+                        <input
+                          required
+                          type="number"
+                          value={newZoneForm.avgPriceM2}
+                          onChange={(e) => setNewZoneForm(prev => ({ ...prev, avgPriceM2: Number(e.target.value) }))}
+                          className="w-full px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Alquiler €/m² (Renta estimada)</label>
+                        <input
+                          required
+                          type="number"
+                          step="0.1"
+                          value={newZoneForm.avgRentPriceM2}
+                          onChange={(e) => setNewZoneForm(prev => ({ ...prev, avgRentPriceM2: Number(e.target.value) }))}
+                          className="w-32 px-3 py-1.8 border border-slate-850 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-emerald-500/15 transition-all cursor-pointer self-end uppercase tracking-wider"
+                      >
+                        Crear Zona
+                      </button>
+                    </div>
+                  </form>
+ 
+                  {/* Listado de zonas creadas */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zonas Registradas ({customZones.length})</h4>
+                    {customZones.length === 0 ? (
+                      <div className="text-center py-8 text-slate-550 text-xs bg-slate-950/20 rounded-xl border border-dashed border-slate-850/80">
+                        No has creado ninguna zona personalizada. Escríbela arriba para afinar estimaciones por calle/barrio.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2">
+                        {customZones.map(zone => (
+                          <div key={zone.id} className="flex justify-between items-center p-3.5 bg-slate-950/40 rounded-xl border border-slate-850/60 text-xs shadow-sm">
+                            <div>
+                              <div className="font-bold text-emerald-400 text-sm">{zone.name}</div>
+                              <div className="text-xs text-slate-500 mt-1 font-medium">
+                                Límite compra: <span className="text-slate-350">{formatCurrency(zone.limit)}</span> • Mínimo: <span className="text-slate-350">{zone.minM2} m²</span> • Medias: <span className="text-slate-350">{zone.avgPriceM2}€/m² venta</span>, <span className="text-slate-350">{zone.avgRentPriceM2}€/m² rent.</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteCustomZone(zone.id)}
+                              className="text-red-400 hover:text-red-300 p-1.8 rounded-lg bg-red-950/20 border border-red-900/30 transition-all cursor-pointer hover:bg-red-950/40"
+                              title="Eliminar zona"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Tab Provincias: Búsqueda y Overrides */}
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={provinceSearch}
+                        onChange={(e) => setProvinceSearch(e.target.value)}
+                        placeholder="Buscar provincia... (ej. Avila, Madrid, Segovia)"
+                        className="flex-1 px-4 py-2 border border-slate-850/80 rounded-lg text-sm bg-slate-950 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder-slate-600 transition-all"
+                      />
+                    </div>
+ 
+                    <div className="space-y-2.5">
+                      {Object.keys(provinciasDefault)
+                        .filter(key => {
+                          const name = provinciasDefault[key].name || key;
+                          return name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(
+                            provinceSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                          );
+                        })
+                        .map(key => {
+                          const base = provinciasDefault[key];
+                          const override = provinciasOverrides[key] || {};
+                          const hasOverrides = Object.keys(override).length > 0;
+                          
+                          // Valores activos (por defecto o modificados)
+                          const limit = override.limit ?? base.limit;
+                          const minM2 = override.minM2 ?? base.minM2;
+                          const avgPriceM2 = override.avgPriceM2 ?? base.avgPriceM2;
+                          const avgRentPriceM2 = override.avgRentPriceM2 ?? base.avgRentPriceM2;
+ 
+                          return (
+                            <div key={key} className={`p-4.5 bg-slate-950/30 rounded-2xl border transition-all ${hasOverrides ? 'border-amber-500/35 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.03)]' : 'border-slate-850/85'}`}>
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
+                                  {base.name}
+                                  {hasOverrides && <span className="text-[8px] bg-amber-500/10 text-amber-400 border border-amber-500/25 px-1.5 py-0.2 rounded font-bold uppercase">Modificado</span>}
+                                </span>
+                                {hasOverrides && (
+                                  <button
+                                    onClick={() => handleResetProvinceOverride(key)}
+                                    className="text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800 hover:border-slate-750 transition-all cursor-pointer"
+                                  >
+                                    Restablecer
+                                  </button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Límite Compra (€)</label>
+                                  <input
+                                    type="number"
+                                    value={limit}
+                                    onChange={(e) => handleUpdateProvinceOverride(key, 'limit', e.target.value)}
+                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Mínimo (m²)</label>
+                                  <input
+                                    type="number"
+                                    value={minM2}
+                                    onChange={(e) => handleUpdateProvinceOverride(key, 'minM2', e.target.value)}
+                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Venta (€/m²)</label>
+                                  <input
+                                    type="number"
+                                    value={avgPriceM2}
+                                    onChange={(e) => handleUpdateProvinceOverride(key, 'avgPriceM2', e.target.value)}
+                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Alquiler (€/m²)</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={avgRentPriceM2}
+                                    onChange={(e) => handleUpdateProvinceOverride(key, 'avgRentPriceM2', e.target.value)}
+                                    className="w-full px-2.5 py-1.5 border border-slate-850 rounded-lg bg-slate-950 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
