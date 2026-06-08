@@ -3,11 +3,90 @@ import {
   Building, MapPin, Calculator, TrendingUp, AlertTriangle, 
   CheckCircle, Plus, Trash2, Settings, ArrowUpDown, Euro,
   Link, Loader2, Download, Upload, RotateCcw, Cloud, RefreshCw, Edit, Sparkles,
-  ChevronDown
+  ChevronDown, Lock, Unlock, Eye, EyeOff
 } from 'lucide-react';
 
 // --- BASE DE DATOS DE PROVINCIAS BASE ---
 import provinciasDefault from '../data/provincias.json';
+
+// --- FUNCIONES HELPER PARA CIFRADO CLIENT-SIDE (ZERO-KNOWLEDGE) ---
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = window.atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const baseKey = await window.crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+  return window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt.buffer as ArrayBuffer,
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptData(plaintext: string, password: string): Promise<any> {
+  const encoder = new TextEncoder();
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv },
+    key,
+    encoder.encode(plaintext)
+  );
+
+  return {
+    encrypted: true,
+    salt: arrayBufferToBase64(salt.buffer),
+    iv: arrayBufferToBase64(iv.buffer),
+    ciphertext: arrayBufferToBase64(encrypted)
+  };
+}
+
+async function decryptData(encryptedObj: any, password: string): Promise<string> {
+  const salt = new Uint8Array(base64ToArrayBuffer(encryptedObj.salt));
+  const iv = new Uint8Array(base64ToArrayBuffer(encryptedObj.iv));
+  const ciphertext = base64ToArrayBuffer(encryptedObj.ciphertext);
+  
+  const key = await deriveKey(password, salt);
+  
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv },
+    key,
+    ciphertext
+  );
+  
+  const decoder = new TextDecoder();
+  return decoder.decode(decrypted);
+}
 
 // --- ALGORITMO DE SCORE INMOBILIARIO ---
 const getPropertyScore = (prop, metrics, zonesConfig) => {
@@ -260,6 +339,9 @@ export default function App() {
   // --- ESTADOS DE SINCRONIZACIÓN EN LA NUBE ---
   const [syncCode, setSyncCode] = useState(() => localStorage.getItem('appPisos_syncCode') || '');
   const [inputSyncCode, setInputSyncCode] = useState(syncCode);
+  const [syncPassword, setSyncPassword] = useState(() => localStorage.getItem('appPisos_syncPassword') || '');
+  const [inputSyncPassword, setInputSyncPassword] = useState(syncPassword);
+  const [showPassword, setShowPassword] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
@@ -416,7 +498,6 @@ export default function App() {
     }
   }, []);
 
-  // --- MÉTODOS DE SINCRONIZACIÓN EN LA NUBE ---
   const handleSaveCloud = async (codeToSave) => {
     const cleanCode = codeToSave.replace(/[^a-zA-Z0-9_-]/g, '').trim().toLowerCase();
     if (!cleanCode) {
@@ -428,21 +509,41 @@ export default function App() {
     setSyncMessage({ text: 'Guardando cartera en el servidor...', type: 'info' });
 
     try {
+      let payload: any = { properties, customZones };
+
+      if (inputSyncPassword) {
+        setSyncMessage({ text: 'Cifrando datos de la cartera...', type: 'info' });
+        try {
+          payload = await encryptData(JSON.stringify(payload), inputSyncPassword);
+        } catch (encryptError) {
+          console.error("Encryption error:", encryptError);
+          setSyncMessage({ text: 'Error al cifrar los datos de la cartera.', type: 'error' });
+          setIsSyncing(false);
+          return;
+        }
+      }
+
       const response = await fetch('/api/portfolio/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cleanCode, properties: { properties, customZones } })
+        body: JSON.stringify({ code: cleanCode, properties: payload })
       });
 
       const resData = await response.json();
 
       if (response.ok && resData.success) {
         setSyncCode(cleanCode);
+        setSyncPassword(inputSyncPassword);
         setCloudMode(resData.mode);
         localStorage.setItem('appPisos_syncCode', cleanCode);
+        if (inputSyncPassword) {
+          localStorage.setItem('appPisos_syncPassword', inputSyncPassword);
+        } else {
+          localStorage.removeItem('appPisos_syncPassword');
+        }
         localStorage.setItem('appPisos_cloudMode', resData.mode);
         setSyncMessage({ 
-          text: `¡Guardado con éxito! Modo: ${resData.mode === 'cloud' ? 'Nube (Vercel KV)' : 'Servidor Local'}`, 
+          text: `¡Guardado con éxito! Modo: ${resData.mode === 'cloud' ? 'Nube (Vercel KV)' : 'Servidor Local'}` + (inputSyncPassword ? ' (Cifrada en privado)' : ' (Pública)'), 
           type: 'success' 
         });
         setTimeout(() => {
@@ -475,7 +576,28 @@ export default function App() {
       const resData = await response.json();
 
       if (response.ok && resData.success) {
-        const data = resData.properties;
+        let data = resData.properties;
+
+        // Comprobar si está cifrado
+        if (data && data.encrypted) {
+          if (!inputSyncPassword) {
+            setSyncMessage({ text: 'Esta cartera está cifrada de forma privada. Introduce la contraseña para cargarla.', type: 'error' });
+            setIsSyncing(false);
+            return;
+          }
+
+          setSyncMessage({ text: 'Descifrando datos de la cartera...', type: 'info' });
+          try {
+            const decryptedText = await decryptData(data, inputSyncPassword);
+            data = JSON.parse(decryptedText);
+          } catch (decryptError) {
+            console.error("Decryption error:", decryptError);
+            setSyncMessage({ text: 'Contraseña incorrecta. No se pudo descifrar la cartera.', type: 'error' });
+            setIsSyncing(false);
+            return;
+          }
+        }
+
         if (Array.isArray(data)) {
           setProperties(data.map(sanitizeImportedProperty));
         } else if (data && Array.isArray(data.properties)) {
@@ -485,11 +607,17 @@ export default function App() {
           }
         }
         setSyncCode(cleanCode);
+        setSyncPassword(inputSyncPassword);
         setCloudMode(resData.mode);
         localStorage.setItem('appPisos_syncCode', cleanCode);
+        if (inputSyncPassword) {
+          localStorage.setItem('appPisos_syncPassword', inputSyncPassword);
+        } else {
+          localStorage.removeItem('appPisos_syncPassword');
+        }
         localStorage.setItem('appPisos_cloudMode', resData.mode);
         setSyncMessage({ 
-          text: `¡Cartera cargada con éxito! Modo: ${resData.mode === 'cloud' ? 'Nube (Vercel KV)' : 'Servidor Local'}`, 
+          text: `¡Cartera cargada con éxito! Modo: ${resData.mode === 'cloud' ? 'Nube (Vercel KV)' : 'Servidor Local'}` + (inputSyncPassword ? ' (Descifrada)' : ''), 
           type: 'success' 
         });
         setTimeout(() => {
@@ -2504,20 +2632,20 @@ export default function App() {
               </div>
  
               {/* SECCIÓN B: NUBE AUTOMÁTICA (VERCEL KV) */}
-              <div className="space-y-3 bg-slate-950/25 p-4 rounded-xl border border-slate-850/65 shadow-md">
-                <div className="flex items-center gap-2 text-slate-400 font-semibold">
-                  <Cloud className="h-4 w-4 text-slate-450" />
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-350">Opción B: Sincronización Nube (Vercel KV)</h4>
+              <div className="space-y-4 bg-slate-950/25 p-4 rounded-xl border border-slate-850/65 shadow-md">
+                <div className="flex items-center gap-2 text-slate-450 font-semibold">
+                  <Cloud className="h-4 w-4 text-blue-400" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-350">Opción B: Sincronización Nube</h4>
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Requiere configurar Vercel KV en el panel del proyecto. Permite guardar y cargar carteras en tiempo real mediante un código de texto.
+                  Guarda y carga carteras mediante un código. Si configuras una contraseña, tus datos serán cifrados localmente en tu navegador (Zero-Knowledge) para máxima privacidad.
                 </p>
- 
+
                 {syncMessage && (
                   <div className={`p-3 rounded-lg text-xs flex items-start gap-2 border ${
-                    syncMessage.type === 'error' ? 'bg-red-950/30 text-red-305 border-red-900/50' :
-                    syncMessage.type === 'success' ? 'bg-emerald-950/30 text-emerald-305 border-emerald-900/50' :
-                    'bg-blue-950/30 text-blue-305 border-blue-900/50'
+                    syncMessage.type === 'error' ? 'bg-red-950/30 text-red-300 border-red-900/50' :
+                    syncMessage.type === 'success' ? 'bg-emerald-950/30 text-emerald-300 border-emerald-900/50' :
+                    'bg-blue-950/30 text-blue-300 border-blue-900/50'
                   }`}>
                     <div className="font-bold shrink-0">
                       {syncMessage.type === 'error' ? '⚠️' : syncMessage.type === 'success' ? '✅' : 'ℹ️'}
@@ -2525,38 +2653,94 @@ export default function App() {
                     <div className="font-medium leading-tight">{syncMessage.text}</div>
                   </div>
                 )}
- 
-                <div className="space-y-1.5">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={inputSyncCode}
-                      onChange={(e) => setInputSyncCode(e.target.value)}
-                      placeholder="Ej. mi-cartera-secreta"
-                      className="flex-1 h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 placeholder-slate-650 disabled:opacity-40 transition-all"
-                      disabled={isSyncing}
-                    />
-                    <button
-                      onClick={generateRandomCode}
-                      className="h-11 px-4 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer hover:text-white hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40"
-                      disabled={isSyncing}
-                    >
-                      Generar
-                    </button>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Código de Sincronización</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={inputSyncCode}
+                        onChange={(e) => setInputSyncCode(e.target.value)}
+                        placeholder="Ej. mi-cartera-secreta"
+                        className="flex-1 h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 placeholder-slate-600 disabled:opacity-40 transition-all"
+                        disabled={isSyncing}
+                      />
+                      <button
+                        onClick={generateRandomCode}
+                        className="h-11 px-4 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer hover:text-white hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40"
+                        disabled={isSyncing}
+                      >
+                        Generar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>Contraseña de Cifrado (Opcional)</span>
+                      <span className="text-blue-400 text-[9px] lowercase font-normal flex items-center gap-0.5">
+                        <Lock className="h-2.5 w-2.5" /> cifrado AES-256
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={inputSyncPassword}
+                        onChange={(e) => setInputSyncPassword(e.target.value)}
+                        placeholder="Sin contraseña (público) o añade una"
+                        className="w-full h-11 pl-4 pr-10 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 placeholder-slate-600 disabled:opacity-40 transition-all"
+                        disabled={isSyncing}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-200 transition-colors p-1"
+                        disabled={isSyncing}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {!inputSyncPassword && (
+                      <p className="text-[9px] text-amber-500/80 leading-normal flex items-center gap-1 font-medium bg-amber-500/5 p-1.5 rounded-md border border-amber-500/10">
+                        ⚠️ Sin contraseña, la cartera será pública y cualquiera con el código podrá verla/sobrescribirla.
+                      </p>
+                    )}
+                    {inputSyncPassword && (
+                      <p className="text-[9px] text-emerald-400/85 leading-normal flex items-center gap-1 font-medium bg-emerald-500/5 p-1.5 rounded-md border border-emerald-500/10">
+                        🔒 Cifrado Zero-Knowledge. Nadie (ni en el servidor) puede ver tus datos. ¡No olvides tu contraseña!
+                      </p>
+                    )}
                   </div>
                 </div>
- 
+
                 {syncCode && (
-                  <div className="text-[10px] text-slate-550 bg-slate-950/50 p-2 rounded-lg border border-slate-850/50 flex justify-between font-semibold">
-                    <span>Activo: <strong className="text-slate-400 font-bold">{syncCode}</strong></span>
-                    <span>Modo: <strong className="text-slate-400 font-bold">{cloudMode === 'cloud' ? '☁️ Vercel KV' : '💾 Servidor Local'}</strong></span>
+                  <div className="text-[10px] text-slate-500 bg-slate-950/50 p-2.5 rounded-lg border border-slate-850/50 flex flex-col gap-1 font-semibold">
+                    <div className="flex justify-between">
+                      <span>Código activo: <strong className="text-slate-400 font-bold">{syncCode}</strong></span>
+                      <span>Modo: <strong className="text-slate-400 font-bold">{cloudMode === 'cloud' ? '☁️ Vercel KV' : '💾 Servidor Local'}</strong></span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-slate-850/55 pt-1 mt-1 text-[9px]">
+                      <span>Estado de privacidad:</span>
+                      <span className={`flex items-center gap-1 font-bold ${syncPassword ? "text-emerald-400" : "text-amber-500"}`}>
+                        {syncPassword ? (
+                          <>
+                            <Lock className="h-3 w-3" /> Cifrado y Privado
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="h-3 w-3" /> Público y Compartido
+                          </>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 )}
- 
+
                 <div className="grid grid-cols-2 gap-2 pt-1.5">
                   <button
                     onClick={() => handleLoadCloud(inputSyncCode)}
-                    className="flex items-center justify-center gap-1.5 h-11 px-4 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex items-center justify-center gap-1.5 h-11 px-4 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-350 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
                     disabled={isSyncing || !inputSyncCode.trim()}
                   >
                     {isSyncing ? <Loader2 className="h-3 w-3 animate-spin text-slate-500" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-500" />}
