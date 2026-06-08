@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Building, MapPin, Calculator, TrendingUp, AlertTriangle, 
   CheckCircle, Plus, Trash2, Settings, ArrowUpDown, Euro,
-  Link, Loader2, Download, Upload, RotateCcw, Cloud, RefreshCw, Edit, Sparkles
+  Link, Loader2, Download, Upload, RotateCcw, Cloud, RefreshCw, Edit, Sparkles,
+  ChevronDown
 } from 'lucide-react';
 
 // --- BASE DE DATOS DE PROVINCIAS BASE ---
@@ -17,57 +18,32 @@ const getPropertyScore = (prop, metrics, zonesConfig) => {
 
   let points = 0;
 
-  // 1. Rentabilidad Neta (ROE) - Max 25 pts
+  // 1. Rentabilidad Neta (ROE) - Max 40 pts
   const roe = metrics.rentabilidadNeta;
-  if (roe >= 10) points += 25;
-  else if (roe >= 8) points += 20;
-  else if (roe >= 6) points += 15;
-  else if (roe >= 4) points += 10;
-  else if (roe >= 2) points += 5;
-  else if (roe < 0) points -= 10;
+  if (roe >= 10) points += 40;
+  else if (roe >= 8) points += 32;
+  else if (roe >= 6) points += 24;
+  else if (roe >= 4) points += 16;
+  else if (roe >= 2) points += 8;
+  else if (roe < 0) points -= 15;
 
-  // 2. Cash Flow Mensual - Max 25 pts
+  // 2. Cash Flow Mensual - Max 30 pts
   const cf = metrics.cashFlowMensual;
-  if (cf >= 150) points += 25;
+  if (cf >= 200) points += 30;
+  else if (cf >= 150) points += 25;
   else if (cf >= 100) points += 20;
   else if (cf >= 50) points += 15;
   else if (cf >= 0) points += 10;
   else points -= 15;
 
-  // 3. Comparación de precio de compra por m2 vs media zona - Max 20 pts
-  const config = zonesConfig[prop.zona];
-  if (config && prop.m2 > 0) {
-    const pricePerM2 = prop.precio / prop.m2;
-    const diffPercent = ((pricePerM2 - config.avgPriceM2) / config.avgPriceM2) * 100;
-    
-    if (diffPercent <= -15) points += 20;
-    else if (diffPercent <= -5) points += 15;
-    else if (diffPercent <= 5) points += 10;
-    else if (diffPercent <= 15) points += 5;
-    else points -= 10;
-  } else {
-    points += 10;
-  }
-
-  // 4. Límite de precio de la zona - Max 15 pts
-  if (config) {
-    const limitDiff = ((config.limit - prop.precio) / config.limit) * 100;
-    if (limitDiff >= 15) points += 15;
-    else if (limitDiff >= 0) points += 10;
-    else points -= 10;
-  } else {
-    points += 10;
-  }
-
-  // 5. Tamaño mínimo de la zona - Max 15 pts
-  if (config && config.minM2 > 0) {
-    const sizeDiff = prop.m2 - config.minM2;
-    if (sizeDiff >= 15) points += 15;
-    else if (sizeDiff >= 0) points += 10;
-    else points -= 10;
-  } else {
-    points += 10;
-  }
+  // 3. Rentabilidad Bruta - Max 30 pts
+  const brute = metrics.rentabilidadBruta;
+  if (brute >= 9) points += 30;
+  else if (brute >= 8) points += 25;
+  else if (brute >= 7) points += 20;
+  else if (brute >= 6) points += 15;
+  else if (brute >= 5) points += 10;
+  else if (brute < 4) points -= 10;
 
   let grade = 'C';
   let color = 'bg-slate-800/80 text-slate-300 border-slate-700/80';
@@ -115,21 +91,29 @@ const PLANTAS = [
 const formatCurrency = (val) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val);
 const formatPercent = (val) => new Intl.NumberFormat('es-ES', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val / 100);
 
+// --- SANITIZACIÓN DE INMUEBLES IMPORTADOS ---
+const sanitizeImportedProperty = (prop: any) => {
+  if (!prop) return prop;
+  const { metrics, score, negotiationRanges, ...rest } = prop;
+  return rest;
+};
+
 export default function App() {
   // --- ESTADO GLOBAL ---
   const [properties, setProperties] = useState(() => {
     const saved = localStorage.getItem('appPisos_properties');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed.map(sanitizeImportedProperty) : [];
       } catch (e) {
         console.error("Error parsing saved properties:", e);
       }
     }
     // Datos de ejemplo por defecto
     return [
-      { id: '1', nombre: 'Piso Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30, honorarios: 0, gastosNotaria: 2000 },
-      { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25, honorarios: 0, gastosNotaria: 2000 },
+      { id: '1', nombre: 'Piso Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30, honorarios: 0, notariaRegistro: 1, sinHipoteca: false, precioOriginal: 75000 },
+      { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25, honorarios: 0, notariaRegistro: 2, sinHipoteca: false, precioOriginal: 145000 },
     ];
   });
 
@@ -287,8 +271,7 @@ export default function App() {
   // --- ESTADOS DE NOTIFICACIÓN FLOTANTE ---
   const [notification, setNotification] = useState(null);
 
-  // --- ESTADO DE EDICIÓN ---
-  const [editingPropertyId, setEditingPropertyId] = useState(null);
+
 
   // Limpiar notificaciones automáticamente
   useEffect(() => {
@@ -325,11 +308,11 @@ export default function App() {
 
         if (Array.isArray(parsedData) && parsedData.length > 0) {
           // Formato antiguo
-          setProperties(parsedData);
+          setProperties(parsedData.map(sanitizeImportedProperty));
           propertiesCount = parsedData.length;
         } else if (parsedData && Array.isArray(parsedData.properties)) {
           // Formato nuevo
-          setProperties(parsedData.properties);
+          setProperties(parsedData.properties.map(sanitizeImportedProperty));
           propertiesCount = parsedData.properties.length;
           if (Array.isArray(parsedData.customZones)) {
             setCustomZones(parsedData.customZones);
@@ -405,6 +388,7 @@ export default function App() {
           ...prev,
           nombre: payload.nombre || prev.nombre,
           precio: payload.precio !== null ? Number(payload.precio) : prev.precio,
+          precioOriginal: payload.precio !== null ? Number(payload.precio) : prev.precioOriginal,
           m2: payload.m2 !== null ? Number(payload.m2) : prev.m2,
           planta: payload.planta || prev.planta,
           zona: matchedZona,
@@ -493,9 +477,9 @@ export default function App() {
       if (response.ok && resData.success) {
         const data = resData.properties;
         if (Array.isArray(data)) {
-          setProperties(data);
+          setProperties(data.map(sanitizeImportedProperty));
         } else if (data && Array.isArray(data.properties)) {
-          setProperties(data.properties);
+          setProperties(data.properties.map(sanitizeImportedProperty));
           if (Array.isArray(data.customZones)) {
             setCustomZones(data.customZones);
           }
@@ -571,22 +555,7 @@ export default function App() {
     }
   };
 
-  // --- MÉTODOS DE COPIA DE SEGURIDAD (IMPORTAR/EXPORTAR) ---
-  const handleExportJSON = () => {
-    const payload = {
-      properties,
-      customZones
-    };
-    const dataStr = JSON.stringify(payload, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.download = `cartera_pisos_${new Date().toISOString().slice(0, 10)}.json`;
-    link.href = url;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
+  // --- MÉTODOS DE COPIA DE SEGURIDAD (IMPORTAR) ---
   const handleImportJSON = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -601,8 +570,9 @@ export default function App() {
           const isValid = parsed.every(p => p.id && p.nombre && typeof p.precio === 'number');
           if (isValid) {
             if (confirm('¿Estás seguro de que quieres importar este archivo? Esto reemplazará tu cartera actual.')) {
-              setProperties(parsed);
+              setProperties(parsed.map(sanitizeImportedProperty));
               setCustomZones([]);
+              setSelectedPropertyIds([]);
             }
           } else {
             alert('El archivo JSON no tiene un formato de propiedades válido.');
@@ -611,10 +581,11 @@ export default function App() {
           const isValid = parsed.properties.every(p => p.id && p.nombre && typeof p.precio === 'number');
           if (isValid) {
             if (confirm('¿Estás seguro de que quieres importar este archivo? Esto reemplazará tu cartera actual.')) {
-              setProperties(parsed.properties);
+              setProperties(parsed.properties.map(sanitizeImportedProperty));
               if (Array.isArray(parsed.customZones)) {
                 setCustomZones(parsed.customZones);
               }
+              setSelectedPropertyIds([]);
             }
           } else {
             alert('El archivo JSON no tiene un formato de propiedades válido.');
@@ -633,14 +604,31 @@ export default function App() {
   const handleResetDemo = () => {
     if (confirm('¿Quieres restablecer la cartera de inmuebles de demostración? Esto borrará tus inmuebles actuales.')) {
       setProperties([
-        { id: '1', nombre: 'Piso Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30, honorarios: 0, gastosNotaria: 2000 },
-        { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25, honorarios: 0, gastosNotaria: 2000 },
+        { id: '1', nombre: 'Piso Talavera', zona: 'Talavera', planta: '1', m2: 75, precio: 75000, itp: 9, reforma: 8000, alquiler: 550, comunidad: 30, ibi: 180, seguro: 120, tin: 3.5, plazo: 30, honorarios: 0, notariaRegistro: 1, sinHipoteca: false, precioOriginal: 75000 },
+        { id: '2', nombre: 'Centro Segovia', zona: 'Segovia', planta: '2', m2: 80, precio: 145000, itp: 8, reforma: 0, alquiler: 850, comunidad: 50, ibi: 300, seguro: 200, tin: 3.2, plazo: 25, honorarios: 0, notariaRegistro: 2, sinHipoteca: false, precioOriginal: 145000 },
       ]);
       setExpandedPropertyId(null);
+      setSelectedPropertyIds([]);
     }
   };
 
   const [expandedPropertyId, setExpandedPropertyId] = useState(null);
+  const [showExtraSimulatorOptions, setShowExtraSimulatorOptions] = useState(false);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
+
+  const toggleSelectProperty = (id) => {
+    setSelectedPropertyIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllProperties = () => {
+    if (selectedPropertyIds.length === properties.length) {
+      setSelectedPropertyIds([]);
+    } else {
+      setSelectedPropertyIds(properties.map(p => p.id));
+    }
+  };
 
   const handleUpdatePropertyField = (id, field, value) => {
     setProperties(prev => prev.map(p => {
@@ -672,7 +660,7 @@ export default function App() {
   // --- ESTADO DEL FORMULARIO ---
   const initialForm = {
     nombre: '', zona: 'Segovia', planta: '1', m2: 65, precio: 100000, itp: 8, reforma: 5000,
-    alquiler: 700, comunidad: 40, ibi: 250, seguro: 150, tin: 3.5, plazo: 30, honorarios: 0, gastosNotaria: 2000
+    alquiler: 700, comunidad: 40, ibi: 250, seguro: 150, tin: 3.5, plazo: 30, honorarios: 0, notariaRegistro: 2, sinHipoteca: false, precioOriginal: 0
   };
   const [formData, setFormData] = useState(initialForm);
   const [formErrors, setFormErrors] = useState([]);
@@ -709,6 +697,7 @@ export default function App() {
           ...prev,
           nombre: d.nombre || prev.nombre,
           precio: d.precio !== null ? Number(d.precio) : prev.precio,
+          precioOriginal: d.precio !== null ? Number(d.precio) : prev.precioOriginal,
           m2: d.m2 !== null ? Number(d.m2) : prev.m2,
           planta: d.planta || prev.planta,
           zona: d.zona || prev.zona,
@@ -759,6 +748,7 @@ export default function App() {
           ...prev,
           nombre: d.nombre || prev.nombre,
           precio: d.precio !== null ? Number(d.precio) : prev.precio,
+          precioOriginal: d.precio !== null ? Number(d.precio) : prev.precioOriginal,
           m2: d.m2 !== null ? Number(d.m2) : prev.m2,
           planta: d.planta || prev.planta,
           zona: d.zona || prev.zona,
@@ -784,27 +774,30 @@ export default function App() {
   // --- LÓGICA DE CÁLCULO FINANCIERO REACTIVO ---
   const calculateMetrics = (prop) => {
     // 1. Gastos y Capital
-    const notariaRegistro = prop.gastosNotaria !== undefined ? prop.gastosNotaria : 2000;
+    const notariaPct = prop.notariaRegistro !== undefined ? prop.notariaRegistro : Math.max(0, 10 - prop.itp);
+    const notariaRegistro = prop.precio * (notariaPct / 100);
     const importeITP = prop.precio * (prop.itp / 100);
     const honorariosInmo = prop.honorarios || 0;
     const gastosAdquisicion = importeITP + notariaRegistro + prop.reforma + honorariosInmo;
-    const entradaAportada = prop.precio * 0.20; // 20% no financiado
+    const entradaAportada = prop.sinHipoteca ? prop.precio : prop.precio * 0.20; // 100% si es sin hipoteca, si no 20%
     const capitalAportadoTotal = entradaAportada + gastosAdquisicion;
-    const financiacion = prop.precio * 0.80; // 80% financiado
+    const financiacion = prop.sinHipoteca ? 0 : prop.precio * 0.80; // 0% si es sin hipoteca, si no 80%
 
     // 2. Hipoteca (Sistema Francés)
     const activeTin = globalMortgage.active ? globalMortgage.tin : prop.tin;
     const activePlazo = globalMortgage.active ? globalMortgage.plazo : prop.plazo;
     
-    const r = (activeTin / 100) / 12; // Tipo mensual
-    const n = activePlazo * 12; // Número total de pagos (meses)
     let cuotaMensual = 0;
     
-    if (r > 0) {
-      const factor = Math.pow(1 + r, n);
-      cuotaMensual = financiacion * ((r * factor) / (factor - 1));
-    } else {
-      cuotaMensual = financiacion / n;
+    if (!prop.sinHipoteca) {
+      const r = (activeTin / 100) / 12; // Tipo mensual
+      const n = activePlazo * 12; // Número total de pagos (meses)
+      if (r > 0) {
+        const factor = Math.pow(1 + r, n);
+        cuotaMensual = financiacion * ((r * factor) / (factor - 1));
+      } else {
+        cuotaMensual = financiacion / n;
+      }
     }
 
     // 3. Flujo de Caja
@@ -813,7 +806,7 @@ export default function App() {
     const cashFlowMensual = prop.alquiler - (cuotaMensual + gastosFijosMensuales + vacancia);
 
     // 4. Rentabilidades
-    const rentabilidadBruta = ((prop.alquiler * 12) / prop.precio) * 100;
+    const rentabilidadBruta = ((prop.alquiler * 12) / (prop.precio + (prop.reforma || 0))) * 100;
     const rentabilidadNeta = ((cashFlowMensual * 12) / capitalAportadoTotal) * 100;
 
     return {
@@ -884,11 +877,11 @@ export default function App() {
 
   // --- MANEJADORES DE EVENTOS ---
   const handleInputChange = (e) => {
-    const { name, value, type } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => {
       const updated = {
         ...prev,
-        [name]: type === 'number' ? Number(value) : value
+        [name]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value)
       };
       if (name === 'zona') {
         const targetZone = zonesConfig[value];
@@ -896,6 +889,17 @@ export default function App() {
           updated.itp = targetZone.itp;
         }
       }
+      
+      // Auto-calcular el porcentaje de notariaRegistro como el restante para llegar al 10%.
+      // Si el valor anterior de notariaRegistro coincide con el valor estimado para los valores previos,
+      // actualizamos dinámicamente. Si el usuario lo ha modificado manualmente a otro porcentaje, lo respetamos.
+      if (name === 'itp' || name === 'zona') {
+        const prevCalculated = Math.max(0, 10 - prev.itp);
+        if (prev.notariaRegistro === prevCalculated || prev.notariaRegistro === 2) {
+          updated.notariaRegistro = Math.max(0, 10 - updated.itp);
+        }
+      }
+
       return updated;
     });
   };
@@ -904,66 +908,204 @@ export default function App() {
     e.preventDefault();
     if (formErrors.length > 0) return;
     
-    if (editingPropertyId) {
-      // Modo Edición: Actualizar inmueble existente
-      setProperties(prev => prev.map(p => p.id === editingPropertyId ? { ...formData, id: editingPropertyId } : p));
-      setNotification({
-        text: `Inmueble "${formData.nombre}" actualizado con éxito.`,
-        type: 'success'
-      });
-      setEditingPropertyId(null);
-    } else {
-      // Modo Creación: Añadir nuevo inmueble
-      setProperties(prev => [...prev, { ...formData, id: Date.now().toString() }]);
-      setNotification({
-        text: `Inmueble "${formData.nombre}" añadido a la cartera.`,
-        type: 'success'
-      });
-    }
-    setFormData({ ...initialForm, nombre: '' }); // Reset partial
-  };
-
-  const handleEdit = (prop) => {
-    setEditingPropertyId(prop.id);
-    setFormData({
-      nombre: prop.nombre,
-      zona: prop.zona,
-      planta: prop.planta,
-      m2: prop.m2,
-      precio: prop.precio,
-      itp: prop.itp,
-      reforma: prop.reforma,
-      alquiler: prop.alquiler,
-      comunidad: prop.comunidad,
-      ibi: prop.ibi,
-      seguro: prop.seguro,
-      tin: prop.tin,
-      plazo: prop.plazo,
-      honorarios: prop.honorarios || 0,
-      gastosNotaria: prop.gastosNotaria !== undefined ? prop.gastosNotaria : 2000
+    const finalPrecioOriginal = Number(formData.precioOriginal) || Number(formData.precio);
+    const dataToSave = { ...formData, precioOriginal: finalPrecioOriginal };
+    
+    // Modo Creación: Añadir nuevo inmueble
+    setProperties(prev => [...prev, { ...dataToSave, id: Date.now().toString() }]);
+    setNotification({
+      text: `Inmueble "${formData.nombre}" añadido a la cartera.`,
+      type: 'success'
     });
-    // Scroll suave hasta el formulario (arriba)
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingPropertyId(null);
-    setFormData({ ...initialForm, nombre: '' });
+    setFormData({ ...initialForm, nombre: '' }); // Reset partial
   };
 
   const handleDelete = (id) => {
     const propToDelete = properties.find(p => p.id === id);
     setProperties(prev => prev.filter(p => p.id !== id));
-    if (editingPropertyId === id) {
-      setEditingPropertyId(null);
-      setFormData({ ...initialForm, nombre: '' });
-    }
+    setSelectedPropertyIds(prev => prev.filter(item => item !== id));
     if (propToDelete) {
       setNotification({
         text: `Inmueble "${propToDelete.nombre}" eliminado.`,
         type: 'info'
       });
     }
+  };
+
+  const optimizeProperty = (prop) => {
+    const zone = zonesConfig[prop.zona];
+    if (!zone) return prop;
+
+    const avgRent = zone.avgRentPriceM2 * prop.m2;
+    const targetRent = Math.round(avgRent * 1.10);
+    // Conservamos el alquiler actual del inmueble si es mayor que 0; de lo contrario, usamos targetRent
+    const optimizedAlquiler = prop.alquiler > 0 ? prop.alquiler : targetRent;
+
+    const zoneRentToPriceRatio = zone.avgRentPriceM2 > 0 ? (zone.avgPriceM2 / zone.avgRentPriceM2) : 150;
+    const targetPrice = Math.round(optimizedAlquiler * zoneRentToPriceRatio * 0.85);
+    const baselinePrice = prop.precioOriginal || prop.precio;
+    const optimizedPrecio = Math.min(baselinePrice, targetPrice);
+
+    const optimizedReforma = prop.reforma; // Conservamos la reforma introducida por el usuario
+
+    const optimizedSinHipoteca = false;
+    const optimizedTin = 3.0;
+    const optimizedPlazo = 30;
+    const optimizedHonorarios = 0;
+
+    const optimizedComunidad = Math.min(prop.comunidad, 40);
+    const optimizedIbi = Math.min(prop.ibi, 200);
+    const optimizedSeguro = Math.min(prop.seguro, 150);
+
+    const optimizedNotariaPct = Math.max(1.0, 10 - (zone.itp || prop.itp || 8));
+
+    return {
+      ...prop,
+      precio: optimizedPrecio,
+      alquiler: optimizedAlquiler,
+      reforma: optimizedReforma,
+      sinHipoteca: optimizedSinHipoteca,
+      tin: optimizedTin,
+      plazo: optimizedPlazo,
+      honorarios: optimizedHonorarios,
+      comunidad: optimizedComunidad,
+      ibi: optimizedIbi,
+      seguro: optimizedSeguro,
+      notariaRegistro: optimizedNotariaPct
+    };
+  };
+
+  const handleOptimizeProperty = (id) => {
+    setProperties(prev => prev.map(p => {
+      if (p.id === id) {
+        const optimized = optimizeProperty(p);
+        setNotification({
+          text: `Inmueble "${p.nombre}" optimizado con éxito para una rentabilidad máxima realista.`,
+          type: 'success'
+        });
+        return optimized;
+      }
+      return p;
+    }));
+  };
+
+  const handleOptimizeAll = () => {
+    if (confirm('¿Quieres optimizar todos los inmuebles de tu cartera a parámetros de rentabilidad realistas? Esto modificará sus valores.')) {
+      setProperties(prev => prev.map(p => optimizeProperty(p)));
+      setNotification({
+        text: '¡Toda la cartera de inmuebles ha sido optimizada con éxito!',
+        type: 'success'
+      });
+    }
+  };
+
+  const getPriceRangesForGrades = (prop) => {
+    const selectedPlanta = PLANTAS.find(p => p.id === prop.planta);
+    if (selectedPlanta?.blocked) {
+      return null;
+    }
+
+    const baselinePrice = prop.precioOriginal || prop.precio;
+    const minPrice = Math.max(15000, Math.round(baselinePrice * 0.5));
+    const maxPrice = Math.max(baselinePrice * 2.5, 300000);
+    const step = 500;
+
+    const ranges = {
+      'A+': { min: Infinity, max: -Infinity, minRoe: Infinity, maxRoe: -Infinity, minCf: Infinity, maxCf: -Infinity, minBruta: Infinity, maxBruta: -Infinity },
+      'A':  { min: Infinity, max: -Infinity, minRoe: Infinity, maxRoe: -Infinity, minCf: Infinity, maxCf: -Infinity, minBruta: Infinity, maxBruta: -Infinity },
+      'B':  { min: Infinity, max: -Infinity, minRoe: Infinity, maxRoe: -Infinity, minCf: Infinity, maxCf: -Infinity, minBruta: Infinity, maxBruta: -Infinity },
+      'C':  { min: Infinity, max: -Infinity, minRoe: Infinity, maxRoe: -Infinity, minCf: Infinity, maxCf: -Infinity, minBruta: Infinity, maxBruta: -Infinity },
+      'D':  { min: Infinity, max: -Infinity, minRoe: Infinity, maxRoe: -Infinity, minCf: Infinity, maxCf: -Infinity, minBruta: Infinity, maxBruta: -Infinity },
+      'E':  { min: Infinity, max: -Infinity, minRoe: Infinity, maxRoe: -Infinity, minCf: Infinity, maxCf: -Infinity, minBruta: Infinity, maxBruta: -Infinity }
+    };
+
+    for (let price = minPrice; price <= maxPrice; price += step) {
+      const tempProp = { ...prop, precio: price };
+      const tempMetrics = calculateMetrics(tempProp);
+      const score = getPropertyScore(tempProp, tempMetrics, zonesConfig);
+
+      const grade = score.grade;
+      if (ranges[grade]) {
+        if (price < ranges[grade].min) ranges[grade].min = price;
+        if (price > ranges[grade].max) ranges[grade].max = price;
+        
+        const roe = tempMetrics.rentabilidadNeta;
+        const cf = tempMetrics.cashFlowMensual;
+        const bruta = tempMetrics.rentabilidadBruta;
+
+        if (roe < ranges[grade].minRoe) ranges[grade].minRoe = roe;
+        if (roe > ranges[grade].maxRoe) ranges[grade].maxRoe = roe;
+
+        if (cf < ranges[grade].minCf) ranges[grade].minCf = cf;
+        if (cf > ranges[grade].maxCf) ranges[grade].maxCf = cf;
+
+        if (bruta < ranges[grade].minBruta) ranges[grade].minBruta = bruta;
+        if (bruta > ranges[grade].maxBruta) ranges[grade].maxBruta = bruta;
+      }
+    }
+
+    return ranges;
+  };
+
+  // --- MÉTODOS DE COPIA DE SEGURIDAD (EXPORTAR CON ANÁLISIS ENRIQUECIDO) ---
+  const enrichPropertyForExport = (prop) => {
+    const metrics = calculateMetrics(prop);
+    const score = getPropertyScore(prop, metrics, zonesConfig);
+    const negotiationRanges = getPriceRangesForGrades(prop);
+    return {
+      ...prop,
+      metrics,
+      score,
+      negotiationRanges
+    };
+  };
+
+  const handleExportJSON = () => {
+    const payload = {
+      properties: properties.map(enrichPropertyForExport),
+      customZones
+    };
+    const dataStr = JSON.stringify(payload, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.download = `cartera_pisos_${new Date().toISOString().slice(0, 10)}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportSelectedJSON = () => {
+    if (selectedPropertyIds.length === 0) return;
+    const selectedProps = properties.filter(p => selectedPropertyIds.includes(p.id));
+    const selectedZones = customZones.filter(z => selectedProps.some(p => p.zona === z.id));
+    const payload = {
+      properties: selectedProps.map(enrichPropertyForExport),
+      customZones: selectedZones
+    };
+    const dataStr = JSON.stringify(payload, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.download = `seleccion_inmuebles_${new Date().toISOString().slice(0, 10)}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportSingleProperty = (prop) => {
+    const payload = {
+      properties: [enrichPropertyForExport(prop)],
+      customZones: customZones.filter(z => z.id === prop.zona)
+    };
+    const dataStr = JSON.stringify(payload, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.download = `inmueble_${prop.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // --- RENDERIZADO VISUAL ---
@@ -1034,9 +1176,10 @@ export default function App() {
             <button
               onClick={handleExportJSON}
               className="flex items-center gap-1.5 h-10 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-extrabold text-white rounded-xl shadow-md hover:shadow-emerald-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer"
+              title="Exportar toda la cartera a JSON"
             >
               <Download className="h-3.5 w-3.5" />
-              <span>Exportar</span>
+              <span>Exportar Cartera</span>
             </button>
           </div>
         </div>
@@ -1050,13 +1193,9 @@ export default function App() {
             <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/80 shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden sticky top-24">
               <div className="bg-slate-900/80 border-b border-slate-800/80 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  {editingPropertyId ? (
-                    <Edit className="h-5 w-5 text-emerald-450" />
-                  ) : (
-                    <Plus className="h-5 w-5 text-emerald-450" />
-                  )}
+                  <Plus className="h-5 w-5 text-emerald-450" />
                   <h2 className="font-bold text-base text-slate-100">
-                    {editingPropertyId ? 'Editar Inmueble' : 'Nuevo Inmueble'}
+                    Nuevo Inmueble
                   </h2>
                 </div>
                 {formData.nombre && (() => {
@@ -1184,7 +1323,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-400 mb-1.5 tracking-wide">Superficie (m²)</label>
                     <input required type="number" name="m2" value={formData.m2} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
@@ -1203,6 +1342,11 @@ export default function App() {
                         </div>
                       );
                     })()}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5 tracking-wide" title="Precio original del anuncio en Idealista para poder comparar">Precio Idealista (€)</label>
+                    <input type="number" name="precioOriginal" value={formData.precioOriginal || ''} onChange={handleInputChange} placeholder="Opcional" className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                    <div className="text-[10px] text-slate-500 mt-1 font-medium leading-tight">Valor de referencia inicial</div>
                   </div>
                 </div>
 
@@ -1223,8 +1367,8 @@ export default function App() {
                       <input required type="number" name="honorarios" value={formData.honorarios} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Notaría y Registro (€)</label>
-                      <input required type="number" name="gastosNotaria" value={formData.gastosNotaria} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Notaría y Registro (%)</label>
+                      <input required type="number" step="0.1" name="notariaRegistro" value={formData.notariaRegistro} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
                     </div>
                   </div>
                 </div>
@@ -1239,15 +1383,21 @@ export default function App() {
                       {formData.m2 > 0 && zonesConfig[formData.zona] && (() => {
                         const suggested = Math.round(formData.m2 * zonesConfig[formData.zona].avgRentPriceM2);
                         return (
-                          <div className="text-[10px] text-blue-450 mt-1.5 flex justify-between items-center font-medium leading-none">
-                            <span>💡 Sugerido: ~{suggested} €</span>
-                            <button
-                              type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, alquiler: suggested }))}
-                              className="text-[9px] bg-blue-950/40 text-blue-400 px-2 py-1 rounded hover:bg-blue-900/40 border border-blue-900/50 transition-all font-bold uppercase cursor-pointer"
-                            >
-                              Aplicar
-                            </button>
+                          <div className="space-y-2 mt-1.5">
+                            <div className="text-[10px] text-blue-450 flex justify-between items-center font-medium leading-none">
+                              <span>💡 Sugerido: ~{suggested} €</span>
+                              <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, alquiler: suggested }))}
+                                className="text-[9px] bg-blue-950/40 text-blue-400 px-2 py-1 rounded hover:bg-blue-900/40 border border-blue-900/50 transition-all font-bold uppercase cursor-pointer"
+                              >
+                                Aplicar
+                              </button>
+                            </div>
+                            <div className="text-[10px] text-amber-500/90 bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 flex items-start gap-1.5 leading-relaxed font-semibold">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                              <span>El alquiler sugerido es una estimación media por m². Se aconseja investigar en Idealista el precio real de alquiler de la zona específica para obtener una rentabilidad precisa.</span>
+                            </div>
                           </div>
                         );
                       })()}
@@ -1268,26 +1418,49 @@ export default function App() {
                 </div>
 
                 {/* Financiación (Si no hay global) */}
-                <div className={`p-3.5 rounded-xl border transition-all duration-200 ${globalMortgage.active ? 'bg-slate-950/20 border-slate-900 opacity-40' : 'bg-slate-950/45 border-slate-850/80'} space-y-3`}>
+                <div className={`p-3.5 rounded-xl border transition-all duration-200 bg-slate-950/45 border-slate-850/80 space-y-3`}>
                   <div className="flex justify-between items-center">
-                    <h3 className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Hipoteca (80%)</h3>
-                    {globalMortgage.active && <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Global Activa</span>}
+                    <h3 className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Financiación</h3>
+                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        name="sinHipoteca" 
+                        checked={formData.sinHipoteca || false} 
+                        onChange={handleInputChange} 
+                        className="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-blue-500/20 h-4 w-4 cursor-pointer" 
+                      />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sin Hipoteca</span>
+                    </label>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">TIN (%)</label>
-                      <input disabled={globalMortgage.active} required type="number" step="0.1" name="tin" value={formData.tin} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed" />
+                  
+                  {!formData.sinHipoteca ? (
+                    <div className={`transition-all duration-200 ${globalMortgage.active ? 'opacity-40' : ''} space-y-3`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wide">Hipoteca (80% del precio)</span>
+                        {globalMortgage.active && <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Global Activa</span>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">TIN (%)</label>
+                          <input disabled={globalMortgage.active} required={!formData.sinHipoteca} type="number" step="0.1" name="tin" value={formData.tin} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Plazo (Años)</label>
+                          <select disabled={globalMortgage.active} name="plazo" value={formData.plazo} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-slate-950 cursor-pointer">
+                            <option value={15} className="bg-slate-950">15 años</option>
+                            <option value={20} className="bg-slate-950">20 años</option>
+                            <option value={25} className="bg-slate-950">25 años</option>
+                            <option value={30} className="bg-slate-950">30 años</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Plazo (Años)</label>
-                      <select disabled={globalMortgage.active} name="plazo" value={formData.plazo} onChange={handleInputChange} className="w-full h-11 px-4 border border-slate-800 bg-slate-950 text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-slate-950 cursor-pointer">
-                        <option value={15} className="bg-slate-950">15 años</option>
-                        <option value={20} className="bg-slate-950">20 años</option>
-                        <option value={25} className="bg-slate-950">25 años</option>
-                        <option value={30} className="bg-slate-950">30 años</option>
-                      </select>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-900 leading-relaxed font-medium">
+                      <span className="text-emerald-400 font-bold block mb-0.5">🟢 Compra al Contado ("A Toca Teja"):</span>
+                      Se aportará el 100% del precio de compra ({formatCurrency(formData.precio)}) más los gastos de adquisición ({formatCurrency((formData.precio * (formData.itp / 100)) + (formData.precio * (formData.notariaRegistro / 100)) + formData.reforma + formData.honorarios)}). No se generará cuota de hipoteca ni intereses mensuales.
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Validaciones Visuales */}
@@ -1313,32 +1486,13 @@ export default function App() {
                   </div>
                 )}
 
-                {editingPropertyId ? (
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    <button 
-                      type="button" 
-                      onClick={handleCancelEdit}
-                      className="flex justify-center items-center h-11 px-4 border border-slate-800 bg-slate-900 text-slate-350 hover:bg-slate-850 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      Cancelar
-                    </button>
-                    <button 
-                      type="submit" 
-                      disabled={formErrors.length > 0}
-                      className="flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Guardar
-                    </button>
-                  </div>
-                ) : (
-                  <button 
-                    type="submit" 
-                    disabled={formErrors.length > 0}
-                    className="w-full mt-4 flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-indigo-500/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Añadir Inmueble
-                  </button>
-                )}
+                <button 
+                  type="submit" 
+                  disabled={formErrors.length > 0}
+                  className="w-full mt-4 flex justify-center items-center h-11 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-indigo-500/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Añadir Inmueble
+                </button>
               </form>
             </div>
           </div>
@@ -1388,12 +1542,52 @@ export default function App() {
               )}
             </div>
 
+            {/* Cabecera de la Cartera */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/40 border border-slate-850/80 rounded-2xl p-5 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <Building className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Inmuebles en Cartera</h3>
+                  <p className="text-xs text-slate-455 mt-0.5">Total de propiedades registradas: <span className="font-extrabold text-slate-300">{properties.length}</span></p>
+                </div>
+              </div>
+              <button
+                onClick={handleOptimizeAll}
+                className="flex items-center gap-2 h-10 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 text-xs font-extrabold text-emerald-455 hover:text-emerald-400 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                title="Optimizar todos los inmuebles con parámetros de máxima rentabilidad realista"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Optimizar Cartera</span>
+              </button>
+              {selectedPropertyIds.length > 0 && (
+                <button
+                  onClick={handleExportSelectedJSON}
+                  className="flex items-center gap-2 h-10 px-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 text-xs font-extrabold text-blue-400 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer animate-fade-in"
+                  title="Exportar inmuebles seleccionados a JSON"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Exportar Seleccionados ({selectedPropertyIds.length})</span>
+                </button>
+              )}
+            </div>
+
             {/* Tabla Dinámica */}
             <div className="bg-slate-900/30 border border-slate-850/80 rounded-2xl shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-850/60">
                   <thead className="bg-slate-900/60">
                     <tr>
+                      <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-450 uppercase tracking-wider w-10">
+                        <input 
+                          type="checkbox" 
+                          disabled={properties.length === 0}
+                          checked={properties.length > 0 && selectedPropertyIds.length === properties.length}
+                          onChange={toggleSelectAllProperties}
+                          className="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-blue-500/20 h-4 w-4 cursor-pointer"
+                        />
+                      </th>
                       <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-450 uppercase tracking-wider">Inmueble</th>
                       <th className="px-4 py-3.5 text-right text-xs font-bold text-slate-450 uppercase tracking-wider">Compra</th>
                       <th 
@@ -1436,7 +1630,7 @@ export default function App() {
                   <tbody className="bg-slate-900/10 divide-y divide-slate-850/50">
                     {sortedProperties.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-6 py-16 text-center text-slate-500">
+                        <td colSpan={10} className="px-6 py-16 text-center text-slate-500">
                           <Building className="mx-auto h-12 w-12 text-slate-700 mb-3" />
                           <p className="font-semibold text-slate-450">No hay inmuebles en la cartera.</p>
                           <p className="text-xs text-slate-650 mt-1">Añade uno usando el panel lateral o pega un enlace de Idealista.</p>
@@ -1462,6 +1656,14 @@ export default function App() {
                               className={`hover:bg-slate-850/50 border-b border-slate-850/60 transition-all cursor-pointer ${isExpanded ? 'bg-slate-850/35 border-l-4 border-emerald-500 font-medium' : ''}`}
                               onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
                             >
+                              <td className="px-4 py-3.5 text-center w-10" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedPropertyIds.includes(prop.id)}
+                                  onChange={() => toggleSelectProperty(prop.id)}
+                                  className="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-blue-500/20 h-4 w-4 cursor-pointer"
+                                />
+                              </td>
                               <td className="px-4 py-3.5">
                                 <div className="flex items-center gap-2">
                                   <div className="text-sm font-bold text-slate-100">{prop.nombre}</div>
@@ -1474,7 +1676,21 @@ export default function App() {
                                 </div>
                               </td>
                               <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
-                                {formatCurrency(prop.precio)}
+                                <div>{formatCurrency(prop.precio)}</div>
+                                {prop.precioOriginal && prop.precioOriginal !== prop.precio ? (
+                                  <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                    Orig: <span className="line-through">{formatCurrency(prop.precioOriginal)}</span>
+                                    {(() => {
+                                      const diff = prop.precio - prop.precioOriginal;
+                                      const pct = Math.round((diff / prop.precioOriginal) * 100);
+                                      return (
+                                        <span className={`ml-1 font-bold ${diff < 0 ? 'text-emerald-450' : 'text-red-400'}`}>
+                                          {diff < 0 ? `${pct}%` : `+${pct}%`}
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
+                                ) : null}
                               </td>
                               <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
                                 {prop.reforma > 0 ? (
@@ -1492,14 +1708,25 @@ export default function App() {
                                 <div className="text-[10px] text-slate-500 font-medium mt-0.5">Inc. {formatCurrency(m.gastosAdquisicion)} gastos</div>
                               </td>
                               <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
-                                {formatCurrency(m.cuotaMensual)}
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  {globalMortgage.active ? (
-                                    <span className="text-amber-455 font-semibold">Sim. {globalMortgage.tin}%</span>
-                                  ) : (
-                                    <span>{prop.tin}% / {prop.plazo}y</span>
-                                  )}
-                                </div>
+                                {prop.sinHipoteca ? (
+                                  <>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 border border-slate-800 text-slate-400">
+                                      Al contado
+                                    </span>
+                                    <div className="text-[9px] text-slate-500 font-medium mt-1">100% Capital</div>
+                                  </>
+                                ) : (
+                                  <>
+                                    {formatCurrency(m.cuotaMensual)}
+                                    <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                                      {globalMortgage.active ? (
+                                        <span className="text-amber-455 font-semibold">Sim. {globalMortgage.tin}%</span>
+                                      ) : (
+                                        <span>{prop.tin}% / {prop.plazo}y</span>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
                               </td>
                               <td className="px-4 py-3.5 text-right whitespace-nowrap">
                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${cfColor}`}>
@@ -1516,16 +1743,19 @@ export default function App() {
                               </td>
                               <td className="px-4 py-3.5 text-center whitespace-nowrap">
                                 <div className="flex justify-center items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                  <button 
-                                    onClick={() => handleEdit(prop)}
-                                    className={`transition-all p-1.5 rounded-lg ${
-                                      editingPropertyId === prop.id 
-                                        ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
-                                        : 'text-slate-450 hover:text-emerald-400 hover:bg-slate-800'
-                                    }`}
-                                    title="Editar inmueble"
+                                  <button
+                                    onClick={() => handleOptimizeProperty(prop.id)}
+                                    className="text-slate-455 hover:text-emerald-400 hover:bg-slate-800 p-1.5 rounded-lg transition-all cursor-pointer"
+                                    title="Optimizar inmueble"
                                   >
-                                    <Edit className="h-4 w-4" />
+                                    <Sparkles className="h-4 w-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleExportSingleProperty(prop)}
+                                    className="text-slate-450 hover:text-blue-400 hover:bg-slate-800 p-1.5 rounded-lg transition-all"
+                                    title="Exportar este inmueble a JSON"
+                                  >
+                                    <Download className="h-4 w-4" />
                                   </button>
                                   <button 
                                     onClick={() => handleDelete(prop.id)}
@@ -1539,24 +1769,30 @@ export default function App() {
                             </tr>
                             {isExpanded && (
                               <tr className="bg-slate-950/40">
-                                <td colSpan={9} className="px-6 py-5 border-t border-b border-slate-850/80 shadow-inner">
+                                <td colSpan={10} className="px-6 py-5 border-t border-b border-slate-850/80 shadow-inner">
                                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     
                                     {/* Desglose de Gastos */}
                                     <div className="space-y-3 animate-slide-up">
                                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Desglose de Costes Iniciales</h4>
                                       <div className="bg-slate-900/80 rounded-xl border border-slate-850 p-4 space-y-2.5 text-xs shadow-md">
+                                        {prop.precioOriginal && prop.precioOriginal !== prop.precio && (
+                                          <div className="flex justify-between text-slate-500 border-b border-slate-800/40 pb-1.5 mb-1.5">
+                                            <span>Precio Original (Idealista):</span>
+                                            <span className="font-semibold text-slate-400 line-through">{formatCurrency(prop.precioOriginal)}</span>
+                                          </div>
+                                        )}
                                         <div className="flex justify-between text-slate-400">
-                                          <span>Entrada Aportada (20%):</span>
-                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.precio * 0.2)}</span>
+                                          <span>{prop.sinHipoteca ? 'Pago al Contado (100%):' : 'Entrada Aportada (20%):'}</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.sinHipoteca ? prop.precio : prop.precio * 0.2)}</span>
                                         </div>
                                         <div className="flex justify-between text-slate-400">
                                           <span>Impuesto ITP ({prop.itp}%):</span>
                                           <span className="font-semibold text-slate-200">{formatCurrency(prop.precio * (prop.itp / 100))}</span>
                                         </div>
                                         <div className="flex justify-between text-slate-400">
-                                          <span>Notaría, Registro y Gestoría:</span>
-                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.gastosNotaria !== undefined ? prop.gastosNotaria : 2000)}</span>
+                                          <span>Notaría, Registro y Gestoría ({prop.notariaRegistro !== undefined ? prop.notariaRegistro : Math.max(0, 10 - prop.itp)}%):</span>
+                                          <span className="font-semibold text-slate-200">{formatCurrency(prop.precio * ((prop.notariaRegistro !== undefined ? prop.notariaRegistro : Math.max(0, 10 - prop.itp)) / 100))}</span>
                                         </div>
                                         <div className="flex justify-between text-slate-400">
                                           <span>Reforma Estimada:</span>
@@ -1581,10 +1817,17 @@ export default function App() {
                                           <span>Ingreso por Alquiler:</span>
                                           <span className="font-semibold text-emerald-400">+{formatCurrency(prop.alquiler)}</span>
                                         </div>
-                                        <div className="flex justify-between text-slate-400">
-                                          <span>Cuota de Hipoteca:</span>
-                                          <span className="font-semibold text-red-400">-{formatCurrency(m.cuotaMensual)}</span>
-                                        </div>
+                                        {!prop.sinHipoteca ? (
+                                          <div className="flex justify-between text-slate-400">
+                                            <span>Cuota de Hipoteca:</span>
+                                            <span className="font-semibold text-red-400">-{formatCurrency(m.cuotaMensual)}</span>
+                                          </div>
+                                        ) : (
+                                          <div className="flex justify-between text-slate-500">
+                                            <span>Cuota de Hipoteca:</span>
+                                            <span className="font-semibold text-slate-450">No aplica (Al contado)</span>
+                                          </div>
+                                        )}
                                         {prop.comunidad > 0 && (
                                           <div className="flex justify-between text-slate-400">
                                             <span>Gastos de Comunidad:</span>
@@ -1618,77 +1861,380 @@ export default function App() {
  
                                     {/* Sliders Interactivos */}
                                     <div className="space-y-4 lg:col-span-2 animate-slide-up">
-                                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Simulador Rápido (Modificar Inmueble)</h4>
-                                      
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/80 rounded-xl border border-slate-850 p-4 shadow-md">
-                                        
-                                        {/* Slider 1: Alquiler */}
-                                        <div className="space-y-2.5">
-                                          <div className="flex justify-between items-center text-xs font-semibold">
-                                            <span className="text-slate-400">Alquiler Estimado:</span>
-                                            <div className="flex items-center gap-1.5">
+                                      <div className="flex justify-between items-center">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Simulador Rápido (Modificar Inmueble)</h4>
+                                        <button
+                                          onClick={() => handleOptimizeProperty(prop.id)}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl text-[10px] font-extrabold text-emerald-450 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                                          title="Optimizar parámetros de este inmueble para máxima rentabilidad"
+                                        >
+                                          <Sparkles className="h-3 w-3" />
+                                          <span>Optimizar Inmueble</span>
+                                        </button>
+                                       </div>
+
+                                       <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/50 rounded-xl border border-slate-850 p-4 shadow-sm items-center justify-between font-medium">
+                                         <div className="flex items-center gap-2 w-full">
+                                           <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider shrink-0">Nombre / Referencia:</span>
+                                           <input
+                                             type="text"
+                                             value={prop.nombre}
+                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'nombre', e.target.value)}
+                                             className="flex-grow h-8 px-3 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                             placeholder="Ej: Piso Centro..."
+                                           />
+                                         </div>
+                                       </div>
+
+                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/80 rounded-xl border border-slate-850 p-4 shadow-md font-medium">
+                                         
+                                         {/* Slider 1: Precio de Compra */}
+                                         <div className="space-y-2.5">
+                                           <div className="flex justify-between items-center text-xs font-semibold">
+                                             <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Precio de Compra:</span>
+                                             <div className="flex items-center gap-1.5">
+                                               <input
+                                                 type="number"
+                                                 value={prop.precio}
+                                                 step={500}
+                                                 onChange={(e) => handleUpdatePropertyField(prop.id, 'precio', Number(e.target.value))}
+                                                 className="w-24 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold"
+                                               />
+                                               <span className="text-slate-455">€</span>
+                                             </div>
+                                           </div>
+                                           <input 
+                                             type="range" 
+                                             min={Math.max(10000, Math.round((prop.precioOriginal || prop.precio) * 0.4))} 
+                                             max={Math.round((prop.precioOriginal || prop.precio) * 1.6)} 
+                                             step={500} 
+                                             value={prop.precio} 
+                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'precio', Number(e.target.value))} 
+                                             className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500" 
+                                           />
+                                           <div className="text-[9px] text-slate-500 flex justify-between font-medium">
+                                             <span>Mín: {formatCurrency(Math.max(10000, Math.round((prop.precioOriginal || prop.precio) * 0.4)))}</span>
+                                             {prop.precioOriginal && (
+                                               <span>Original: {formatCurrency(prop.precioOriginal)}</span>
+                                             )}
+                                             <span>Máx: {formatCurrency(Math.round((prop.precioOriginal || prop.precio) * 1.6))}</span>
+                                           </div>
+                                         </div>
+
+                                         {/* Slider 2: Alquiler Estimado */}
+                                         <div className="space-y-2.5">
+                                           <div className="flex justify-between items-center text-xs font-semibold">
+                                             <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Alquiler Estimado:</span>
+                                             <div className="flex items-center gap-1.5">
+                                               <input
+                                                 type="number"
+                                                 value={prop.alquiler}
+                                                 onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))}
+                                                 className="w-20 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold"
+                                               />
+                                               <span className="text-slate-455">/mes</span>
+                                             </div>
+                                           </div>
+                                           <input 
+                                             type="range" 
+                                             min={minRent} 
+                                             max={maxRent} 
+                                             step={10} 
+                                             value={prop.alquiler} 
+                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))} 
+                                             className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500" 
+                                           />
+                                           {zonesConfig[prop.zona] && (
+                                             <div className="space-y-2">
+                                               <div className="text-[9px] text-slate-500 flex justify-between font-medium">
+                                                 <span>Mín: {formatCurrency(minRent)}</span>
+                                                 <span>Media: ~{Math.round(baseRent)} €</span>
+                                                 <span>Máx: {formatCurrency(maxRent)}</span>
+                                               </div>
+                                               <div className="text-[9px] text-amber-500/90 bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 flex items-start gap-1 font-semibold leading-normal">
+                                                 <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+                                                 <span>El alquiler sugerido es estimativo. Investigue en Idealista la renta real de la zona para no distorsionar el análisis.</span>
+                                               </div>
+                                             </div>
+                                           )}
+                                         </div>
+
+                                         {/* Slider 3: Reforma Estimada */}
+                                         <div className="space-y-2.5">
+                                           <div className="flex justify-between items-center text-xs font-semibold">
+                                             <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Reforma Estimada:</span>
+                                             <div className="flex items-center gap-1.5">
+                                               <input
+                                                 type="number"
+                                                 value={prop.reforma}
+                                                 step={500}
+                                                 onChange={(e) => handleUpdatePropertyField(prop.id, 'reforma', Number(e.target.value))}
+                                                 className="w-24 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold"
+                                               />
+                                               <span className="text-slate-455">€</span>
+                                             </div>
+                                           </div>
+                                           <input 
+                                             type="range" 
+                                             min={0} 
+                                             max={Math.max(60000, Math.round(prop.m2 * 800))} 
+                                             step={500} 
+                                             value={prop.reforma} 
+                                             onChange={(e) => handleUpdatePropertyField(prop.id, 'reforma', Number(e.target.value))} 
+                                             className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500" 
+                                           />
+                                           <div className="text-[9px] text-slate-500 flex justify-between font-medium">
+                                             <span>Sin reforma</span>
+                                             {prop.m2 > 0 && prop.reforma > 0 && (
+                                               <span>~{Math.round(prop.reforma / prop.m2)} €/m²</span>
+                                             )}
+                                             <span>Máx: {formatCurrency(Math.max(60000, Math.round(prop.m2 * 800)))}</span>
+                                           </div>
+                                         </div>
+
+                                         {/* Slider 4: Financiación/Hipoteca */}
+                                         <div className="space-y-2.5">
+                                           <div className="flex justify-between items-center">
+                                             <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Financiación:</span>
+                                             <label className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-wider cursor-pointer">
+                                               <input 
+                                                 type="checkbox" 
+                                                 checked={prop.sinHipoteca || false} 
+                                                 onChange={(e) => handleUpdatePropertyField(prop.id, 'sinHipoteca', e.target.checked)} 
+                                                 className="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-blue-500/20 h-3.5 w-3.5 cursor-pointer" 
+                                               />
+                                               <span>Al contado</span>
+                                             </label>
+                                           </div>
+
+                                           {prop.sinHipoteca ? (
+                                             <div className="flex flex-col justify-center h-[72px] bg-emerald-950/20 border border-emerald-900/60 rounded-xl p-3 space-y-1 text-left">
+                                               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-450 leading-none">
+                                                 <Sparkles className="h-3 w-3" />
+                                                 <span>Compra al Contado Activa</span>
+                                               </div>
+                                               <p className="text-[9px] text-slate-400 leading-relaxed font-medium">
+                                                 100% capital aportado de fondos propios. Sin cuota hipotecaria.
+                                               </p>
+                                             </div>
+                                           ) : (
+                                             <div className="space-y-2">
+                                               <div className="flex justify-between items-center text-xs font-semibold">
+                                                 <span className="text-slate-550 text-[10px]">Interés Hipoteca (TIN):</span>
+                                                 <div className="flex items-center gap-1">
+                                                   <input
+                                                     type="number"
+                                                     step="0.1"
+                                                     disabled={globalMortgage.active}
+                                                     value={globalMortgage.active ? globalMortgage.tin : prop.tin}
+                                                     onChange={(e) => handleUpdatePropertyField(prop.id, 'tin', Number(e.target.value))}
+                                                     className="w-16 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold disabled:opacity-40"
+                                                   />
+                                                   <span className="text-slate-455">%</span>
+                                                 </div>
+                                               </div>
+                                               <input 
+                                                 type="range" 
+                                                 min="0.5" 
+                                                 max="8.0" 
+                                                 step="0.1" 
+                                                 disabled={globalMortgage.active}
+                                                 value={globalMortgage.active ? globalMortgage.tin : prop.tin} 
+                                                 onChange={(e) => handleUpdatePropertyField(prop.id, 'tin', Number(e.target.value))} 
+                                                 className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-30 disabled:cursor-not-allowed" 
+                                               />
+                                               <div className="text-[9px] text-slate-500 flex justify-between font-medium">
+                                                 <span>Mín: 0.5%</span>
+                                                 <span>Plazo: {prop.plazo} años</span>
+                                                 <span>Máx: 8%</span>
+                                               </div>
+                                             </div>
+                                           )}
+                                         </div>
+                                       </div>
+ 
+                                        {/* Collapsible toggle for extra options */}
+                                        <div className="flex justify-center py-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => setShowExtraSimulatorOptions(!showExtraSimulatorOptions)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-750 hover:border-slate-700 rounded-xl text-[10px] font-bold text-slate-350 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                          >
+                                            <Settings className="h-3 w-3 text-slate-455" />
+                                            <span>{showExtraSimulatorOptions ? 'Ocultar Parámetros Adicionales' : 'Mostrar Parámetros Adicionales (Gastos, Plazos...)'}</span>
+                                            <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform duration-300 ${showExtraSimulatorOptions ? 'rotate-180' : ''}`} />
+                                          </button>
+                                        </div>
+
+                                        {showExtraSimulatorOptions && (
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-slate-900/60 border border-slate-850 rounded-xl p-4 shadow-inner animate-slide-up text-left mt-2">
+                                            
+                                            {/* Gastos Mensuales */}
+                                            <div className="col-span-2 sm:col-span-3 border-b border-slate-800/85 pb-1 flex items-center gap-1.5">
+                                              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Gastos de Operativa (Mensuales/Anuales)</span>
+                                            </div>
+
+                                            {/* Comunidad */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Comunidad (€/mes)</label>
                                               <input
                                                 type="number"
-                                                value={prop.alquiler}
-                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))}
-                                                className="w-20 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold"
+                                                value={prop.comunidad}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'comunidad', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
                                               />
-                                              <span className="text-slate-455">/mes</span>
                                             </div>
-                                          </div>
-                                          <input 
-                                            type="range" 
-                                            min={minRent} 
-                                            max={maxRent} 
-                                            step={10} 
-                                            value={prop.alquiler} 
-                                            onChange={(e) => handleUpdatePropertyField(prop.id, 'alquiler', Number(e.target.value))} 
-                                            className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500" 
-                                          />
-                                          {zonesConfig[prop.zona] && (
-                                            <div className="text-[9px] text-slate-500 flex justify-between font-medium">
-                                              <span>Mín: {formatCurrency(minRent)}</span>
-                                              <span>Media: ~{Math.round(baseRent)} €</span>
-                                              <span>Máx: {formatCurrency(maxRent)}</span>
+
+                                            {/* IBI */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">IBI Anual (€/año)</label>
+                                              <input
+                                                type="number"
+                                                value={prop.ibi}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'ibi', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                              />
                                             </div>
-                                          )}
-                                        </div>
- 
-                                        {/* Slider 2: TIN */}
-                                        <div className="space-y-2.5">
-                                          <div className="flex justify-between items-center text-xs font-semibold">
-                                            <span className="text-slate-400">Interés Hipoteca (TIN):</span>
-                                            <div className="flex items-center gap-1.5">
+
+                                            {/* Seguro */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Seguro Anual (€/año)</label>
+                                              <input
+                                                type="number"
+                                                value={prop.seguro}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'seguro', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                              />
+                                            </div>
+
+                                            {/* Gastos de Compra */}
+                                            <div className="col-span-2 sm:col-span-3 border-b border-slate-800/85 pb-1 pt-1 flex items-center gap-1.5">
+                                              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Gastos de Compra (Adquisición)</span>
+                                            </div>
+
+                                            {/* ITP */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">ITP (%)</label>
                                               <input
                                                 type="number"
                                                 step="0.1"
-                                                disabled={globalMortgage.active}
-                                                value={globalMortgage.active ? globalMortgage.tin : prop.tin}
-                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'tin', Number(e.target.value))}
-                                                className="w-16 h-7 text-right px-1.5 bg-slate-950 border border-slate-800 text-slate-100 rounded text-xs focus:outline-none focus:border-blue-500 font-bold disabled:opacity-40"
+                                                value={prop.itp}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'itp', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
                                               />
-                                              <span className="text-slate-455">%</span>
                                             </div>
+
+                                            {/* Honorarios */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Honorarios Inmo. (€)</label>
+                                              <input
+                                                type="number"
+                                                value={prop.honorarios}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'honorarios', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                              />
+                                            </div>
+
+                                            {/* Notaría / Registro */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Notaría y Reg. (%)</label>
+                                              <input
+                                                type="number"
+                                                step="0.1"
+                                                value={prop.notariaRegistro}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'notariaRegistro', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                              />
+                                            </div>
+
+                                            {/* Parámetros Técnicos */}
+                                            <div className="col-span-2 sm:col-span-3 border-b border-slate-800/85 pb-1 pt-1 flex items-center gap-1.5">
+                                              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Otros Parámetros de Simulación</span>
+                                            </div>
+
+                                            {/* Zona */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Zona</label>
+                                              <select
+                                                value={prop.zona}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  handleUpdatePropertyField(prop.id, 'zona', val);
+                                                  const targetZone = zonesConfig[val];
+                                                  if (targetZone && targetZone.itp !== undefined) {
+                                                    handleUpdatePropertyField(prop.id, 'itp', targetZone.itp);
+                                                    handleUpdatePropertyField(prop.id, 'notariaRegistro', Math.max(0, 10 - targetZone.itp));
+                                                  }
+                                                }}
+                                                className="w-full h-8 px-2 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold cursor-pointer text-slate-100"
+                                              >
+                                                {customZones.length > 0 && (
+                                                  <optgroup label="Zonas Personalizadas" className="bg-slate-950 text-slate-300">
+                                                    {customZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                                                  </optgroup>
+                                                )}
+                                                <optgroup label="Provincias (Predeterminadas)" className="bg-slate-950 text-slate-300">
+                                                  {Object.keys(provinciasDefault).map(z => (
+                                                    <option key={z} value={z}>{zonesConfig[z]?.name || z}</option>
+                                                  ))}
+                                                </optgroup>
+                                              </select>
+                                            </div>
+
+                                            {/* Precio Idealista */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Precio Idealista (€)</label>
+                                              <input
+                                                type="number"
+                                                value={prop.precioOriginal || ''}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'precioOriginal', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                                placeholder="Opcional"
+                                              />
+                                            </div>
+
+                                            {/* Plazo Hipoteca */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Plazo Hipoteca</label>
+                                              <select
+                                                disabled={prop.sinHipoteca || globalMortgage.active}
+                                                value={prop.plazo}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'plazo', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-slate-950 text-slate-100"
+                                              >
+                                                <option value={15}>15 años</option>
+                                                <option value={20}>20 años</option>
+                                                <option value={25}>25 años</option>
+                                                <option value={30}>30 años</option>
+                                              </select>
+                                            </div>
+
+                                            {/* Superficie */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Superficie (m²)</label>
+                                              <input
+                                                type="number"
+                                                value={prop.m2}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'm2', Number(e.target.value))}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold"
+                                              />
+                                            </div>
+
+                                            {/* Planta */}
+                                            <div className="space-y-1.5">
+                                              <label className="block text-[10px] font-bold text-slate-455">Planta</label>
+                                              <select
+                                                value={prop.planta}
+                                                onChange={(e) => handleUpdatePropertyField(prop.id, 'planta', e.target.value)}
+                                                className="w-full h-8 px-2.5 bg-slate-950 border border-slate-800 text-slate-100 rounded-lg text-xs focus:outline-none focus:border-blue-500/50 font-bold cursor-pointer bg-slate-950 text-slate-100"
+                                              >
+                                                {PLANTAS.map(p => <option key={p.id} value={p.id} className="bg-slate-950">{p.label}</option>)}
+                                              </select>
+                                            </div>
+
                                           </div>
-                                          <input 
-                                            type="range" 
-                                            min="0.5" 
-                                            max="8.0" 
-                                            step="0.1" 
-                                            disabled={globalMortgage.active}
-                                            value={globalMortgage.active ? globalMortgage.tin : prop.tin} 
-                                            onChange={(e) => handleUpdatePropertyField(prop.id, 'tin', Number(e.target.value))} 
-                                            className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-30 disabled:cursor-not-allowed" 
-                                          />
-                                          <div className="text-[9px] text-slate-500 flex justify-between font-medium">
-                                            <span>Mín: 0.5%</span>
-                                            <span>Plazo: {prop.plazo} años</span>
-                                            <span>Máx: 8%</span>
-                                          </div>
-                                        </div>
- 
-                                      </div>
- 
+                                        )}
+
                                       {/* Métricas rápidas de impacto */}
                                       <div className="grid grid-cols-3 gap-3 text-center">
                                         <div className="bg-slate-950/60 border border-slate-850 rounded-xl p-3 shadow-md">
@@ -1710,9 +2256,129 @@ export default function App() {
                                           </span>
                                         </div>
                                       </div>
- 
+
                                     </div>
- 
+
+                                    {/* Rangos de Precio de Compra sugeridos para Negociación */}
+                                    {(() => {
+                                      const priceRanges = getPriceRangesForGrades(prop);
+                                      return (
+                                        <div className="lg:col-span-3 border-t border-slate-850/60 pt-5 mt-2 space-y-4 animate-slide-up">
+                                          <div>
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                              <TrendingUp className="h-4 w-4 text-emerald-450" />
+                                              <span>Rangos de Precio de Compra sugeridos para Negociación</span>
+                                            </h4>
+                                            <p className="text-[10px] text-slate-500 font-medium mt-1">
+                                              Rango de precios de adquisición simulados y la calificación de inversión que obtendrías en cada uno de ellos.
+                                            </p>
+                                          </div>
+                                          
+                                          {priceRanges === null ? (
+                                            <div className="bg-red-950/15 border border-red-900/40 rounded-xl p-4 flex items-start gap-3 shadow-md">
+                                              <AlertTriangle className="h-5 w-5 text-red-450 shrink-0 mt-0.5" />
+                                              <div className="space-y-1">
+                                                <h5 className="text-xs font-bold text-red-400 uppercase tracking-wider">Inmueble Bloqueado (Grado F)</h5>
+                                                <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                                                  Este inmueble tiene asignado un Grado F (Bloqueado) debido a que no cumple con criterios esenciales de la inversión (por ejemplo: tercera planta o superior sin ascensor). Ajustar el precio de compra no alterará su exclusión ni su calificación actual.
+                                                </p>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                                              {Object.entries(priceRanges).map(([grade, range]) => {
+                                                if (range.min === Infinity) return null;
+                                                const isCurrent = grade === score.grade;
+                                                
+                                                let gradeStyle = {
+                                                  bg: 'bg-slate-900/60',
+                                                  border: 'border-slate-800/80',
+                                                  text: 'text-slate-350',
+                                                  badge: 'bg-slate-800 text-slate-400 border-slate-700/60',
+                                                  label: ''
+                                                };
+                                                
+                                                if (grade === 'A+') {
+                                                  gradeStyle = { bg: 'bg-emerald-950/10', border: 'border-emerald-500/15', text: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', label: 'Excelente' };
+                                                } else if (grade === 'A') {
+                                                  gradeStyle = { bg: 'bg-teal-950/10', border: 'border-teal-500/15', text: 'text-teal-300', badge: 'bg-teal-500/10 text-teal-300 border-teal-500/20', label: 'Muy Bueno' };
+                                                } else if (grade === 'B') {
+                                                  gradeStyle = { bg: 'bg-blue-950/10', border: 'border-blue-500/15', text: 'text-blue-400', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20', label: 'Bueno' };
+                                                } else if (grade === 'C') {
+                                                  gradeStyle = { bg: 'bg-amber-950/10', border: 'border-amber-500/15', text: 'text-amber-400', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Aceptable' };
+                                                } else if (grade === 'D') {
+                                                  gradeStyle = { bg: 'bg-orange-950/10', border: 'border-orange-500/15', text: 'text-orange-400', badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20', label: 'Riesgoso' };
+                                                } else if (grade === 'E') {
+                                                  gradeStyle = { bg: 'bg-red-950/10', border: 'border-red-500/15', text: 'text-red-400', badge: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'No Recomendado' };
+                                                }
+                                                
+                                                return (
+                                                  <div
+                                                    key={grade}
+                                                    className={`relative p-3.5 rounded-xl border flex flex-col justify-between transition-all duration-300 shadow-md ${
+                                                      isCurrent
+                                                        ? 'border-emerald-500 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30'
+                                                        : `${gradeStyle.border} ${gradeStyle.bg}`
+                                                    }`}
+                                                  >
+                                                    {isCurrent && (
+                                                      <span className="absolute -top-2 left-3 px-2 py-0.5 text-[8px] font-extrabold tracking-wider uppercase bg-emerald-500 text-slate-950 rounded shadow-glow-emerald">
+                                                        Actual
+                                                      </span>
+                                                    )}
+                                                    
+                                                    <div className="flex justify-between items-center mb-2">
+                                                      <span className={`text-sm font-extrabold ${isCurrent ? 'text-emerald-450' : gradeStyle.text}`}>
+                                                        Grado {grade}
+                                                      </span>
+                                                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded border ${gradeStyle.badge}`}>
+                                                        {gradeStyle.label}
+                                                      </span>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-2.5 mt-3 border-t border-slate-850 pt-2.5 flex flex-col gap-1">
+                                                       <div>
+                                                         <div className="text-slate-500 font-bold uppercase text-[8px] tracking-wider mb-0.5">Precio de Compra</div>
+                                                         <div className="font-extrabold text-slate-100 text-[11px] whitespace-nowrap">
+                                                           {range.min === range.max
+                                                             ? formatCurrency(range.min)
+                                                             : `${formatCurrency(range.min)} - ${formatCurrency(range.max)}`}
+                                                         </div>
+                                                       </div>
+                                                       <div>
+                                                         <div className="text-slate-500 font-bold uppercase text-[8px] tracking-wider mb-0.5">ROE (Neta)</div>
+                                                         <div className="font-extrabold text-emerald-450 text-[11px] whitespace-nowrap">
+                                                           {range.minRoe === range.maxRoe
+                                                             ? formatPercent(range.minRoe)
+                                                             : `${formatPercent(range.minRoe)} - ${formatPercent(range.maxRoe)}`}
+                                                         </div>
+                                                       </div>
+                                                       <div>
+                                                         <div className="text-slate-500 font-bold uppercase text-[8px] tracking-wider mb-0.5">Flujo de Caja</div>
+                                                         <div className="font-extrabold text-blue-400 text-[11px] whitespace-nowrap">
+                                                           {range.minCf === range.maxCf
+                                                             ? `${formatCurrency(range.minCf)}/mes`
+                                                             : `${formatCurrency(range.minCf)} - ${formatCurrency(range.maxCf)}/mes`}
+                                                         </div>
+                                                       </div>
+                                                       <div>
+                                                         <div className="text-slate-500 font-bold uppercase text-[8px] tracking-wider mb-0.5">Rent. Bruta</div>
+                                                         <div className="font-extrabold text-slate-300 text-[11px] whitespace-nowrap">
+                                                           {range.minBruta === range.maxBruta
+                                                             ? formatPercent(range.minBruta)
+                                                             : `${formatPercent(range.minBruta)} - ${formatPercent(range.maxBruta)}`}
+                                                         </div>
+                                                       </div>
+                                                     </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+
                                   </div>
                                 </td>
                               </tr>
