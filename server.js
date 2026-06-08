@@ -504,9 +504,13 @@ app.post('/api/portfolio/save', async (req, res) => {
       });
     } catch (error) {
       console.error(`[Sync Error] Fallo al guardar en archivo local:`, error.message);
+      let friendlyError = 'Error al escribir el archivo de datos local en el servidor.';
+      if (process.env.VERCEL) {
+        friendlyError = 'Error: No se puede guardar en el disco de Vercel (solo lectura). Debes configurar e integrar "Vercel KV" en el panel del proyecto.';
+      }
       return res.status(500).json({
         success: false,
-        error: 'Error al escribir el archivo de datos local en el servidor.'
+        error: friendlyError
       });
     }
   }
@@ -567,9 +571,13 @@ app.get('/api/portfolio/load/:code', async (req, res) => {
     console.log(`[Sync] Cargando portafolio "${safeCode}" desde archivo local...`);
     const filePath = path.join(DATA_DIR, `portfolio_${safeCode}.json`);
     if (!fs.existsSync(filePath)) {
+      let friendlyError = 'No se encontró ninguna cartera local con ese código en el servidor.';
+      if (process.env.VERCEL) {
+        friendlyError = 'No se encontró la cartera en Vercel. Asegúrate de configurar "Vercel KV" para guardar datos permanentemente.';
+      }
       return res.status(404).json({
         success: false,
-        error: 'No se encontró ninguna cartera local con ese código en el servidor.'
+        error: friendlyError
       });
     }
 
@@ -582,9 +590,13 @@ app.get('/api/portfolio/load/:code', async (req, res) => {
       });
     } catch (error) {
       console.error(`[Sync Error] Fallo al leer archivo local:`, error.message);
+      let friendlyError = 'Error al leer el archivo de datos local del servidor.';
+      if (process.env.VERCEL) {
+        friendlyError = 'Error: No se puede leer del disco de Vercel. Vincula "Vercel KV" al proyecto.';
+      }
       return res.status(500).json({
         success: false,
-        error: 'Error al leer el archivo de datos local del servidor.'
+        error: friendlyError
       });
     }
   }
