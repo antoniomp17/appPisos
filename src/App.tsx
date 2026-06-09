@@ -2604,6 +2604,42 @@ export default function App() {
             {/* Tabla Dinámica */}
             {activeMainTab === 'listado' && (
               <div className={`bg-slate-900/30 border border-slate-850/80 rounded-2xl shadow-xl overflow-hidden ${mobileTab !== 'cartera' ? 'hidden lg:block' : ''}`}>
+                
+                {/* TabBar de Ciudades */}
+                <div className="bg-slate-900/50 border-b border-slate-850/80 p-4">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1 select-none">
+                    <span>📍 Filtrar por Ciudad / Zona</span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                    <button
+                      onClick={() => setFilterZone('Todos')}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+                        filterZone === 'Todos'
+                          ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-glow-blue'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                      }`}
+                    >
+                      📍 Todas ({properties.length})
+                    </button>
+                    {uniqueZonesInProperties.map(z => {
+                      const count = properties.filter(p => p.zona === z).length;
+                      const name = zonesConfig[z]?.name || z;
+                      return (
+                        <button
+                          key={z}
+                          onClick={() => setFilterZone(z)}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+                            filterZone === z
+                              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-glow-blue'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          }`}
+                        >
+                          🏢 {name} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
               {/* VISTA TARJETAS — solo móvil (< lg) */}
               <div className="lg:hidden divide-y divide-slate-850/60">
@@ -2718,6 +2754,51 @@ export default function App() {
                           <p className="text-xs font-bold text-emerald-400">{formatPercent(m.rentabilidadNeta)}</p>
                         </div>
                       </div>
+
+                      {/* Bloque de Contacto Rápido (Visible sin expandir en móvil) */}
+                      {(prop.contactName || prop.contactPhone || prop.contactNotes || (prop.contactStatus && prop.contactStatus !== 'pending')) && (
+                        <div className="mt-3 bg-slate-950/50 rounded-xl border border-slate-850 p-3 text-xs space-y-2 font-medium cursor-default" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-between items-center flex-wrap gap-1.5 border-b border-slate-850 pb-2">
+                            <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1 select-none">
+                              <span>📞 Gestión de Contacto</span>
+                            </span>
+                            {prop.contactStatus && (
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold border ${getStatusStyles(prop.contactStatus)}`}>
+                                {getStatusLabel(prop.contactStatus)}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                            {prop.contactName && (
+                              <div className="flex items-center gap-1.5 truncate">
+                                <User className="h-3.5 w-3.5 text-blue-455 shrink-0" />
+                                <span className="truncate">{prop.contactName}</span>
+                              </div>
+                            )}
+                            {prop.contactPhone && (
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="h-3.5 w-3.5 text-emerald-455 shrink-0" />
+                                <a href={`tel:${prop.contactPhone}`} className="text-emerald-405 hover:underline font-bold">{prop.contactPhone}</a>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {prop.contactStatus === 'visit_scheduled' && prop.contactDate && (
+                            <div className="flex items-center gap-1.5 text-indigo-400 font-bold bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20">
+                              <Calendar className="h-3.5 w-3.5" />
+                              <span>Cita: {new Date(prop.contactDate).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )}
+                          
+                          {prop.contactNotes && (
+                            <div className="text-slate-400 text-[11px] leading-relaxed border-t border-slate-850/60 pt-2 flex items-start gap-1.5">
+                              <MessageSquare className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+                              <span className="line-clamp-2">{prop.contactNotes}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Menu de edición rápida y desglose (Simulador Rápido) */}
                       {isExpanded && (
@@ -3739,6 +3820,49 @@ export default function App() {
                                     </span>
                                   )}
                                 </div>
+
+                                {/* Bloque de Contacto Rápido (Visible sin expandir en desktop) */}
+                                {(prop.contactName || prop.contactPhone || prop.contactNotes || (prop.contactStatus && prop.contactStatus !== 'pending')) && (
+                                  <div className="mt-2 bg-slate-900/60 rounded-xl border border-slate-850 p-2.5 text-[10px] space-y-1.5 text-slate-300 max-w-[280px]" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex justify-between items-center gap-1 border-b border-slate-850 pb-1">
+                                      <span className="font-bold text-[8px] text-slate-500 uppercase tracking-wider select-none">📞 Contacto</span>
+                                      {prop.contactStatus && prop.contactStatus !== 'pending' && (
+                                        <span className={`px-1.5 rounded text-[8px] font-extrabold border ${getStatusStyles(prop.contactStatus)}`}>
+                                          {getStatusLabel(prop.contactStatus)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 flex-wrap text-slate-355 font-medium">
+                                      {prop.contactName && (
+                                        <span className="flex items-center gap-0.5 truncate max-w-[120px]">
+                                          <User className="h-3 w-3 text-blue-405 shrink-0" />
+                                          <span className="truncate">{prop.contactName}</span>
+                                        </span>
+                                      )}
+                                      {prop.contactPhone && (
+                                        <span className="flex items-center gap-0.5">
+                                          <Phone className="h-3 w-3 text-emerald-455 shrink-0" />
+                                          <a href={`tel:${prop.contactPhone}`} className="text-emerald-405 hover:underline font-bold">{prop.contactPhone}</a>
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {prop.contactStatus === 'visit_scheduled' && prop.contactDate && (
+                                      <div className="flex items-center gap-1 text-indigo-400 font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                        <Calendar className="h-3 w-3" />
+                                        <span>Cita: {new Date(prop.contactDate).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {prop.contactNotes && (
+                                      <div className="text-slate-400 leading-normal border-t border-slate-850 pb-1 pt-1.5 flex items-start gap-1">
+                                        <MessageSquare className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
+                                        <span className="line-clamp-1">{prop.contactNotes}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-3.5 text-right text-sm text-slate-200 font-medium whitespace-nowrap">
                                 <div>{formatCurrency(prop.precio)}</div>
